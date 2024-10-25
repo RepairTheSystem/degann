@@ -1,5 +1,5 @@
 from typing import Callable
-
+import torch.optim as optim
 from tensorflow import keras
 
 _optimizers: dict = {
@@ -17,32 +17,56 @@ _optimizers: dict = {
     "SGD": keras.optimizers.SGD,
 }
 
+_torch_optimizers: dict = {
+    "Adadelta": optim.Adadelta,
+    "Adagrad": optim.Adagrad,
+    "Adam": optim.Adam,
+    "AdamW": optim.AdamW,
+    "Adamax": optim.Adamax,
+    "RMSprop": optim.RMSprop,
+    "SGD": optim.SGD,
+}
 
-def get_optimizer(name: str):
-    """
-    Get optimizer by name
-    Parameters
-    ----------
-    name: str
-        Name of optimizer
+class OptimizerFactory:
+    def __init__(self, framework: str):
+        self.framework = framework.lower()
 
-    Returns
-    -------
-    optimizer_class: tf.keras.losses.Loss
-        Result optimizer
-    """
-    return _optimizers.get(name)
+    def get_optimizer(self, name: str, **kwargs):
+        """
+        Gets the optimizer by name.
+        
+        Parameters
+        ----------
+        name: str
+            The name of the optimizer
+        kwargs: dict
+            Additional parameters for initializing the optimizer
 
+        Returns
+        ----------
+        optimizer_class: Callable
+            An instance of the optimizer
+        """
+        if self.framework == 'tensorflow':
+            optimizer_class = _optimizers.get(name)
+            if optimizer_class:
+                return optimizer_class(**kwargs)
+            else:
+                raise ValueError(f"Optimizer {name} not found for TensorFlow.")
+        elif self.framework == 'pytorch':
+            optimizer_class = _torch_optimizers.get(name)
+            if optimizer_class:
+                return optimizer_class(**kwargs)
+            else:
+                raise ValueError(f"Optimizer {name} not found for PyTorch.")
+        else:
+            raise ValueError(f"Unknown framework: {self.framework}")
 
-def get_all_optimizers() -> dict[str, Callable]:
-    """
-    Get all optimizers
-    Parameters
-    ----------
-
-    Returns
-    -------
-    optimizer_class: dict[str, tf.keras.losses.Loss]
-        All optimizers
-    """
-    return _optimizers
+    def get_all_optimizers(self):
+        if self.framework == 'tensorflow':
+            return _optimizers
+        elif self.framework == 'pytorch':
+            return _torch_optimizers
+        else:
+            raise ValueError(f"Unknown framework: {self.framework}")
+            # вынести из фабрики вывод из словаря
