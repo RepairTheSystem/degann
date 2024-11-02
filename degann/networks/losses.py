@@ -216,7 +216,6 @@ class LossFactory:
             return _torch_losses
         else:
             raise ValueError(f"Unknown framework: {self.framework}")
-        
 
 # конфиг пакета со строковым значением
 # фукнции активации -> слои -> нейронка
