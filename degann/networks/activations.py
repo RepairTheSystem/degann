@@ -1,153 +1,106 @@
-from typing import Callable
+from typing import Callable, Dict, Optional
 
 import tensorflow as tf
 import torch
 import torch.nn.functional as F
-import tensorflow as tf
 
-def perceptron_threshold(x, threshold: float = 1.0):
-    return tf.where(x >= threshold, 1.0, 0.0)
+# An empty dictionary for activation, which will be filled on request
+_activation_name: Dict[str, Callable] = {}
 
-def torch_perceptron_threshold(x, threshold: float = 1.0):
-    return torch.where(x >= threshold, torch.tensor(1.0), torch.tensor(0.0))
+# Metadata for choosing a framework
+# it will be elected in the configs
+_framework = 'tensorflow'  # или 'pytorch'
 
-def torch_parabolic(x: torch.Tensor, beta: float = 0, p: float = 1 / 5):
-    """
-    PyTorch реализация функции активации "parabolic".
-
-    Parameters
-    ----------
-    x: torch.Tensor
-        Input data vector
-    beta: float
-        Offset along the OY axis
-    p: float
-        Focal parabola parameter
-
-    Returns
-    -------
-    new_x: torch.Tensor
-        Data vector after applying activation function
-    """
-    return torch.where(x >= 0, beta + torch.sqrt(2 * p * x), beta - torch.sqrt(-2 * p * x))
-
-
-def parabolic(x: tf.Tensor, beta: float = 0, p: float = 1 / 5):
-    """
-    Activation function is described in https://rairi.frccsc.ru/en/publications/426
-
-    Parameters
-    ----------
-    x: tf.Tensor
-        Input data vector
-    beta: float
-        Offset along the OY axis
-    p: float
-        Focal parabola parameter
-
-    Returns
-    -------
-    new_x: tf.Tensor
-        Data vector after applying activation function
-    """
+def parabolic_tf(x: tf.Tensor, beta: float = 0, p: float = 1 / 5) -> tf.Tensor:
     return tf.where(x >= 0, beta + tf.sqrt(2 * p * x), beta - tf.sqrt(-2 * p * x))
 
+def parabolic_torch(x: torch.Tensor, beta: float = 0, p: float = 1 / 5) -> torch.Tensor:
+    return torch.where(x >= 0, beta + torch.sqrt(2 * p * x), beta - torch.sqrt(-2 * p * x))
 
-_tf_activation_functions = {
-    "elu": tf.keras.activations.elu,
-    "relu": tf.keras.activations.relu,
-    "gelu": tf.keras.activations.gelu,
-    "selu": tf.keras.activations.selu,
-    "exponential": tf.keras.activations.exponential,
-    "linear": tf.keras.activations.linear,
-    "sigmoid": tf.keras.activations.sigmoid,
-    "hard_sigmoid": tf.keras.activations.hard_sigmoid,
-    "swish": tf.keras.activations.swish,
-    "tanh": tf.keras.activations.tanh,
-    "softplus": tf.keras.activations.softplus,
-    "softsign": tf.keras.activations.softsign,
-    "parabolic": parabolic,
-}
-
-_torch_activation_functions = {
-    "relu": F.relu,
-    "elu": F.elu,
-    "gelu": F.gelu,
-    "selu": F.selu,
-    "sigmoid": torch.sigmoid,
-    "tanh": torch.tanh,
-    "softplus": F.softplus,
-    "softsign": lambda x: x / (1 + torch.abs(x)),
-    "parabolic": torch_parabolic,
-    "perceptron_threshold": torch_perceptron_threshold,
-}
-
-class ActivationFactory:
+# Factory for adding activations to the dictionary depending on the framework
+def _initialize_activation(name: str):
     """
-    Factory for obtaining activation functions for TensorFlow and PyTorch.
-
+    Initializes the activation function and adds it to _activation_name.
+    
     Parameters
     ----------
-    framework : strategy
-        The name of the framework that requires the activation function.
-        Supported values: 'tensorflow', 'pwtorch'.
+    name: str
+        Name of the activation function
     """
+    global _activation_name
 
-    def __init__(self, framework: str):
-        """
-        Initializing the factory specifying the framework
+    if _framework == 'tensorflow':
+        activations = {
+            "elu": tf.keras.activations.elu,
+            "relu": tf.keras.activations.relu,
+            "gelu": tf.keras.activations.gelu,
+            "selu": tf.keras.activations.selu,
+            "exponential": tf.keras.activations.exponential,
+            "linear": tf.keras.activations.linear,
+            "sigmoid": tf.keras.activations.sigmoid,
+            "hard_sigmoid": tf.keras.activations.hard_sigmoid,
+            "swish": tf.keras.activations.swish,
+            "tanh": tf.keras.activations.tanh,
+            "softplus": tf.keras.activations.softplus,
+            "softsign": tf.keras.activations.softsign,
+            "parabolic": parabolic_tf,
+        }
+    elif _framework == 'pytorch':
+        activations = {
+            "elu": F.elu,
+            "relu": F.relu,
+            "gelu": F.gelu,
+            "selu": F.selu,
+            "exponential": torch.exp,
+            "linear": lambda x: x,
+            "sigmoid": torch.sigmoid,
+            "hard_sigmoid": F.hardsigmoid,
+            "swish": lambda x: x * torch.sigmoid(x),
+            "tanh": torch.tanh,
+            "softplus": F.softplus,
+            "softsign": F.softsign,
+            "parabolic": parabolic_torch,
+        }
+    else:
+        raise ValueError(f"Unsupported framework: {_framework}")
 
-        Parameter
-        ----------
-        framework : strategy
-            The name of the framework that the factory will be used for.
-            The following values are supported: 'tensorflow' for Thensorflow, 'pytorch' for Pwtorch.
-        """
-        self.framework = framework.lower()
+    if name in activations:
+        _activation_name[name] = activations[name]
+    else:
+        raise ValueError(f"Activation function '{name}' is not supported by {_framework}")
 
-    def get_activation(self, name: str) -> Callable:
-        """
-        Getting the activation function by name.
 
+def get(name: str) -> Optional[Callable]:
+    """
+    Returns the activation function by name, automatically initializing it if necessary.
+        
         Parameters
         ----------
-        name : string
-            The name of the activation function to receive.
-
+        name: string
+            Name of the activation function
+            
         Returns
         -------
-        activation_function : Callable
-            The activation function of the corresponding framework.
+        func: Optional[Callable]
+            Activation function or None if the name is not found
+    """
+    if name not in _activation_name:
+        _initialize_activation(name)
+    return _activation_name.get(name)
 
-        Exceptions
-        ----------
-        Value Error
-            If the framework is not supported or the activation function with the specified name is not found.
-        """
-        if self.framework == 'tensorflow':
-            return _tf_activation_functions.get(name)
-        elif self.framework == 'pytorch':
-            return _torch_activation_functions.get(name)
-        else:
-            raise ValueError(f"Unknown framework: {self.framework}")
 
-    def get_all_activation_functions(self) -> dict[str, Callable]:
-        """
-        Returns all available activation functions for the selected framework.
-
-        returns
+def get_all_activations() -> Dict[str, Callable]:
+    """
+    Returns all available activation functions, automatically initializing them if necessary.
+        
+        Returns
         -------
-        activations : dict[str, Callable]
-        A dictionary containing all activation functions for TensorFlow or PyTorch, depending on the framework.
-
-        Exceptions
-        ----------
-        ValueError
-            If the framework is not supported.
-        """
-        if self.framework == 'tensorflow':
-            return _tf_activation_functions
-        elif self.framework == 'pytorch':
-            return _torch_activation_functions
-        else:
-            raise ValueError(f"Unknown framework: {self.framework}")
+        func: Dict[str, Callable]
+            Dictionary of all activation functions
+    """
+    if not _activation_name:
+        for act_name in ["elu", "relu", "gelu", "selu", "exponential", "linear",
+                         "sigmoid", "hard_sigmoid", "swish", "tanh", "softplus", 
+                         "softsign", "parabolic"]:
+            _initialize_activation(act_name)
+    return _activation_name
