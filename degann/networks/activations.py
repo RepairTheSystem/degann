@@ -1,15 +1,11 @@
 from typing import Callable, Dict, Optional
-
+from ..config import _framework  
 import tensorflow as tf
 import torch
 import torch.nn.functional as F
 
 # An empty dictionary for activation, which will be filled on request
 _activation_name: Dict[str, Callable] = {}
-
-# Metadata for choosing a framework
-# it will be elected in the configs
-_framework = 'tensorflow'  # или 'pytorch'
 
 def parabolic_tf(x: tf.Tensor, beta: float = 0, p: float = 1 / 5) -> tf.Tensor:
     return tf.where(x >= 0, beta + tf.sqrt(2 * p * x), beta - tf.sqrt(-2 * p * x))

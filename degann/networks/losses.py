@@ -1,44 +1,29 @@
 from abc import ABC, abstractmethod
-from typing import Callable
+from typing import Callable, Dict, Optional
 
+from ..config import _framework  
 import tensorflow as tf
 from tensorflow import keras
 
 import torch
 import torch.nn.functional as F
 
-def sign(x):
-    return tf.where(x < 0.0, -1.0, 1.0)
 
+# Base class for loss functions
 class BaseLoss(ABC):
     """
-    A base class created to parody tf.karas.loss.Loss,
-    but with the ability to expand to multiple frameworks
+    A base class that mimics `tf.keras.losses.Loss` but supports multiple frameworks like TensorFlow and PyTorch.
     """
+
     def __init__(self, reduction: str = "none", name: str = "base_loss"):
-        """
-        The base class for implementing the loss function for TensorFlow and Pwtorch.
-        
-        Parameters:
-        -----------
-        reduction: str
-            The reduction method (none, sum, mean).
-        name: str
-            The name of the loss function.
-        """
         self.reduction = reduction
         self.name = name
 
+    @abstractmethod
     def __call__(self, y_true, y_pred):
-        """
-        Calculation of the loss function.
-        """
-        raise NotImplementedError("The __call__ method must be implemented in a subclass.")
-    
+        pass
+
     def reduce_loss(self, loss):
-        """
-        Applies reduction to loss.
-        """
         if self.reduction == "none":
             return loss
         elif self.reduction == "sum":
@@ -46,176 +31,150 @@ class BaseLoss(ABC):
         elif self.reduction == "mean":
             return tf.reduce_mean(loss) if isinstance(loss, tf.Tensor) else torch.mean(loss)
         else:
-            raise ValueError(f"Unknown type of reduction: {self.reduction}")
+            raise ValueError(f"Unknown reduction type: {self.reduction}")
+
+# Empty dictionaries for storing loss functions
+_loss_registry: Dict[str, Callable] = {}
+
+# TensorFlow-specific loss functions
+def _initialize_tf_losses():
+    return {
+        "Huber": keras.losses.Huber(),
+        "LogCosh": keras.losses.LogCosh(),
+        "MeanAbsoluteError": keras.losses.MeanAbsoluteError(),
+        "MeanAbsolutePercentageError": keras.losses.MeanAbsolutePercentageError(),
+        "MeanSquaredError": keras.losses.MeanSquaredError(),
+        "RootMeanSquaredError": RMSE(),
+        "MeanSquaredLogarithmicError": keras.losses.MeanSquaredLogarithmicError(),
+        "RelativeAbsoluteError": RelativeAbsoluteError(),
+        "MaxAbsoluteDeviation": MaxAbsoluteDeviation(),
+        "MaxAbsolutePercentageError": MaxAbsolutePercentageError(),
+    }
+
+# PyTorch-specific loss functions
+def _initialize_torch_losses():
+    return {
+        "RelativeAbsoluteError": PyTorchRelativeAbsoluteError(),
+        "MaxAbsoluteDeviation": PyTorchMaxAbsoluteDeviation(),
+        "RootMeanSquaredError": PyTorchRMSE(),
+    }
 
 
+# Custom loss classes for TensorFlow
 class RelativeAbsoluteError(BaseLoss):
-    """
-    This class provides RAE loss function:
-    $$ RAE = \frac{\Sum^n_{i=1} |y_i - \hat(y)_i|}{\Sum^n_{i=1} |y_i - \bar(y)|}
-    """
-
-    def __init__(self, reduction=tf.keras.losses.Reduction.NONE, name="rae", **kwargs):
-        super(RelativeAbsoluteError, self).__init__(
-            reduction=reduction, name=name, **kwargs
-        )
-
-    def __call__(self, y_true, y_pred, sample_weight=None):
+    def __call__(self, y_true, y_pred):
         true_mean = tf.reduce_mean(y_true)
-        squared_error_num = tf.reduce_sum(tf.abs(y_true - y_pred))
-        squared_error_den = tf.reduce_sum(tf.abs(y_true - true_mean))
-
-        squared_error_den = tf.cond(
-            pred=tf.equal(squared_error_den, tf.constant(0.0)),
-            true_fn=lambda: tf.constant(1.0),
-            false_fn=lambda: squared_error_den,
-        )
-
-        loss = squared_error_num / squared_error_den
-        return loss
+        numerator = tf.reduce_sum(tf.abs(y_true - y_pred))
+        denominator = tf.reduce_sum(tf.abs(y_true - true_mean))
+        denominator = tf.where(denominator == 0.0, tf.constant(1.0), denominator)
+        loss = numerator / denominator
+        return self.reduce_loss(loss)
 
 
 class MaxAbsoluteDeviation(BaseLoss):
-    """
-    This class provides Max Absolute Deviation loss function:
-    $$ MAD = \max |y - \hat(y)|
-    """
-
-    def __init__(
-        self, reduction=tf.keras.losses.Reduction.NONE, name="my_mae", **kwargs
-    ):
-        super(MaxAbsoluteDeviation, self).__init__(
-            reduction=reduction, name=name, **kwargs
-        )
-
-    def __call__(self, y_true, y_pred, sample_weight=None):
-        loss = tf.math.reduce_max(tf.math.abs(y_true - y_pred))
-        return loss
+    def __call__(self, y_true, y_pred):
+        loss = tf.reduce_max(tf.abs(y_true - y_pred))
+        return self.reduce_loss(loss)
 
 
 class MaxAbsolutePercentageError(BaseLoss):
-    """
-    This class provides Max Absolute Percentage Error loss function:
-    $$ MAD = \max |\frac{y - \hat(y)}{y}|
-    """
-
-    def __init__(
-        self, reduction=tf.keras.losses.Reduction.NONE, name="maxAPE", **kwargs
-    ):
-        super(MaxAbsolutePercentageError, self).__init__(
-            reduction=reduction, name=name, **kwargs
-        )
-
-    def __call__(self, y_true, y_pred, sample_weight=None):
-        loss = tf.math.reduce_max(tf.math.abs((y_true - y_pred) / y_true)) * 100.0
-        return loss
+    def __call__(self, y_true, y_pred):
+        loss = tf.reduce_max(tf.abs((y_true - y_pred) / y_true)) * 100.0
+        return self.reduce_loss(loss)
 
 
 class RMSE(BaseLoss):
-    """
-    This class provides Root Mean squared Error loss function:
-    $$ MAD = \sqrt{MSE}
-    """
-
-    def __init__(self, reduction=tf.keras.losses.Reduction.NONE, name="RMSE", **kwargs):
-        super(RMSE, self).__init__(reduction=reduction, name=name, **kwargs)
-
-    def __call__(self, y_true, y_pred, sample_weight=None):
-        loss = tf.math.sqrt(tf.math.reduce_mean((y_pred - y_true) ** 2))
-        return loss
+    def __call__(self, y_true, y_pred):
+        mse = tf.reduce_mean(tf.square(y_pred - y_true))
+        loss = tf.sqrt(mse)
+        return self.reduce_loss(loss)
 
 
+# Custom loss classes for PyTorch
 class PyTorchRelativeAbsoluteError(BaseLoss):
-    """
-    This class provides RAE loss function:
-    $$ RAE = \frac{\Sum^n_{i=1} |y_i - \hat(y)_i|}{\Sum^n_{i=1} |y_i - \bar(y)|}
-    """
     def __call__(self, y_true, y_pred):
         true_mean = torch.mean(y_true)
-        squared_error_num = torch.sum(torch.abs(y_true - y_pred))
-        squared_error_den = torch.sum(torch.abs(y_true - true_mean))
+        numerator = torch.sum(torch.abs(y_true - y_pred))
+        denominator = torch.sum(torch.abs(y_true - true_mean))
+        denominator = denominator if denominator != 0 else torch.tensor(1.0)
+        loss = numerator / denominator
+        return self.reduce_loss(loss)
 
-        if squared_error_den == 0:
-            squared_error_den = torch.tensor(1.0)
-        
-        loss = squared_error_num / squared_error_den
-        return loss
 
 class PyTorchMaxAbsoluteDeviation(BaseLoss):
-    """
-    This class provides MAD loss function:
-    $$ MAD = max|y - \hat{y}|
-    """
-    def __init__(self, reduction: str = "none", name: str = "max_absolute_deviation", **kwargs):
-        super(PyTorchMaxAbsoluteDeviation, self).__init__(reduction=reduction, name=name, **kwargs)
-
     def __call__(self, y_true, y_pred):
         loss = torch.max(torch.abs(y_true - y_pred))
         return self.reduce_loss(loss)
 
-class PyTorchRMSE(BaseLoss):
-    """
-    This class provides Root Mean squared Error loss function:
-    $$ MAD = \sqrt{MSE}
-    """
-    def __init__(self, reduction: str = "none", name: str = "rmse", **kwargs):
-        super(PyTorchRMSE, self).__init__(reduction=reduction, name=name, **kwargs)
 
+class PyTorchRMSE(BaseLoss):
     def __call__(self, y_true, y_pred):
         mse = torch.mean((y_pred - y_true) ** 2)
-        rmse = torch.sqrt(mse)
-        return self.reduce_loss(rmse)
+        loss = torch.sqrt(mse)
+        return self.reduce_loss(loss)
 
-# Reduction should be set to None?
-# Create losses dict for every framework 
-_tf_losses: dict = {
-    "Huber": keras.losses.Huber(),
-    "LogCosh": keras.losses.LogCosh(),
-    "MeanAbsoluteError": keras.losses.MeanAbsoluteError(),
-    "MeanAbsolutePercentageError": keras.losses.MeanAbsolutePercentageError(),
-    "MaxAbsolutePercentageError": MaxAbsolutePercentageError(),
-    "MeanSquaredError": keras.losses.MeanSquaredError(),
-    "RootMeanSquaredError": RMSE(),
-    "MeanSquaredLogarithmicError": keras.losses.MeanSquaredLogarithmicError(),
-    "RelativeAbsoluteError": RelativeAbsoluteError(),
-    "MaxAbsoluteDeviation": MaxAbsoluteDeviation(),
-}
 
-_torch_losses = {
-    "RelativeAbsoluteError": PyTorchRelativeAbsoluteError(),
-    "MaxAbsoluteDeviation": PyTorchMaxAbsoluteDeviation(),
-    "RootMeanSquaredError" : PyTorchRMSE(),
-}
-
-class LossFactory:
+# Factory to initialize and retrieve loss functions
+def _initialize_loss(name: str):
     """
-    A factory for obtaining loss functions for TensorFlow and PyTorch.
+    Initializes the loss function based on the framework and adds it to the registry.
 
     Parameters
     ----------
-    framework : str
-        The name of the framework that requires the loss function. 
-        Supported values: 'tensorflow', 'pytorch'.
+    name : str
+        The name of the loss function to initialize.
     """
-    
-    def __init__(self, framework: str):
-        self.framework = framework.lower()
+    global _loss_registry
 
-    def get_loss(self, name: str):
-        if self.framework == 'tensorflow':
-            return _tf_losses.get(name)
-        elif self.framework == 'pytorch':
-            return _torch_losses.get(name)
+    if _framework == "tensorflow":
+        tf_losses = _initialize_tf_losses()
+        if name in tf_losses:
+            _loss_registry[name] = tf_losses[name]
         else:
-            raise ValueError(f"Unknown framework: {self.framework}")
-
-    def get_all_loss_functions(self):
-        if self.framework == 'tensorflow':
-            return _tf_losses
-        elif self.framework == 'pytorch':
-            return _torch_losses
+            raise ValueError(f"Loss function '{name}' is not available in TensorFlow.")
+    elif _framework == "pytorch":
+        torch_losses = _initialize_torch_losses()
+        if name in torch_losses:
+            _loss_registry[name] = torch_losses[name]
         else:
-            raise ValueError(f"Unknown framework: {self.framework}")
+            raise ValueError(f"Loss function '{name}' is not available in PyTorch.")
+    else:
+        raise ValueError(f"Unsupported framework: {_framework}")
 
-# конфиг пакета со строковым значением
-# фукнции активации -> слои -> нейронка
+
+def get_loss(name: str) -> Optional[Callable]:
+    """
+    Retrieves a loss function by name, initializing it if necessary.
+
+    Parameters
+    ----------
+    name : str
+        Name of the loss function.
+
+    Returns
+    -------
+    Callable
+        The corresponding loss function or None if not found.
+    """
+    if name not in _loss_registry:
+        _initialize_loss(name)
+    return _loss_registry.get(name)
+
+
+def get_all_losses() -> Dict[str, Callable]:
+    """
+    Retrieves all available loss functions, initializing them if necessary.
+
+    Returns
+    -------
+    Dict[str, Callable]
+        A dictionary containing all available loss functions.
+    """
+    if not _loss_registry:
+        if _framework == "tensorflow":
+            for loss_name in _initialize_tf_losses().keys():
+                _initialize_loss(loss_name)
+        elif _framework == "pytorch":
+            for loss_name in _initialize_torch_losses().keys():
+                _initialize_loss(loss_name)
+    return _loss_registry

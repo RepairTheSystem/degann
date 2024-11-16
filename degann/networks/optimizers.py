@@ -1,72 +1,90 @@
-from typing import Callable
+from typing import Callable, Dict, Optional
 import torch.optim as optim
-from tensorflow import keras
+from ..config import _framework  
+from tensorflow.keras import optimizers as tf_optimizers
 
-_optimizers: dict = {
-    "Adadelta": keras.optimizers.Adadelta,
-    "Adafactor": keras.optimizers.Adafactor,
-    "Adagrad": keras.optimizers.Adagrad,
-    "Adam": keras.optimizers.Adam,
-    "AdamW": keras.optimizers.AdamW,
-    "Adamax": keras.optimizers.Adamax,
-    "Ftrl": keras.optimizers.Ftrl,
-    "Lion": keras.optimizers.Lion,
-    "LossScaleOptimizer": keras.optimizers.LossScaleOptimizer,
-    "Nadam": keras.optimizers.Nadam,
-    "RMSprop": keras.optimizers.RMSprop,
-    "SGD": keras.optimizers.SGD,
-}
+_optimizer_name: Dict[str, Callable] = {}
 
-_torch_optimizers: dict = {
-    "Adadelta": optim.Adadelta,
-    "Adagrad": optim.Adagrad,
-    "Adam": optim.Adam,
-    "AdamW": optim.AdamW,
-    "Adamax": optim.Adamax,
-    "RMSprop": optim.RMSprop,
-    "SGD": optim.SGD,
-}
+def _initialize_optimizer(name: str):
+    """
+    Initializes the optimizer and adds it to _optimizer_name.
 
-class OptimizerFactory:
-    def __init__(self, framework: str):
-        self.framework = framework.lower()
+    Parameters
+    ----------
+    name: string
+        The name of the optimizer.
+    """
+    global _optimizer_name
 
-    def get_optimizer(self, name: str, **kwargs):
-        """
-        Gets the optimizer by name.
-        
-        Parameters
-        ----------
-        name: str
-            The name of the optimizer
-        kwargs: dict
-            Additional parameters for initializing the optimizer
+    if _framework == 'tensorflow':
+        optimizers = {
+            "Adadelta": tf_optimizers.Adadelta,
+            "Adafactor": tf_optimizers.experimental.Adafactor,
+            "Adagrad": tf_optimizers.Adagrad,
+            "Adam": tf_optimizers.Adam,
+            "AdamW": tf_optimizers.AdamW,
+            "Adamax": tf_optimizers.Adamax,
+            "Ftrl": tf_optimizers.Ftrl,
+            "Lion": tf_optimizers.experimental.Lion,
+            "Nadam": tf_optimizers.Nadam,
+            "RMSprop": tf_optimizers.RMSprop,
+            "SGD": tf_optimizers.SGD,
+        }
+    elif _framework == 'pytorch':
+        optimizers = {
+            "Adadelta": optim.Adadelta,
+            "Adagrad": optim.Adagrad,
+            "Adam": optim.Adam,
+            "AdamW": optim.AdamW,
+            "Adamax": optim.Adamax,
+            "RMSprop": optim.RMSprop,
+            "SGD": optim.SGD,
+        }
+    else:
+        raise ValueError(f"Unsupported framework: {_framework}")
 
-        Returns
-        ----------
-        optimizer_class: Callable
-            An instance of the optimizer
-        """
-        if self.framework == 'tensorflow':
-            optimizer_class = _optimizers.get(name)
-            if optimizer_class:
-                return optimizer_class(**kwargs)
-            else:
-                raise ValueError(f"Optimizer {name} not found for TensorFlow.")
-        elif self.framework == 'pytorch':
-            optimizer_class = _torch_optimizers.get(name)
-            if optimizer_class:
-                return optimizer_class(**kwargs)
-            else:
-                raise ValueError(f"Optimizer {name} not found for PyTorch.")
-        else:
-            raise ValueError(f"Unknown framework: {self.framework}")
+    if name in optimizers:
+        _optimizer_name[name] = optimizers[name]
+    else:
+        raise ValueError(f"Optimizer '{name}' is not supported by {_framework}")
 
-    def get_all_optimizers(self):
-        if self.framework == 'tensorflow':
-            return _optimizers
-        elif self.framework == 'pytorch':
-            return _torch_optimizers
-        else:
-            raise ValueError(f"Unknown framework: {self.framework}")
-            # вынести из фабрики вывод из словаря
+
+def get_optimizer(name: str, **kwargs) -> Optional[Callable]:
+    """
+    Returns the optimizer by name, automatically initializing it if necessary.
+
+    Parameters
+    ----------
+    name: string
+        The name of the optimizer.
+    kwargs: dict
+        Parameters for initializing the optimizer.
+
+    Returns
+    -------
+    optimizer: Optional[Callable]
+        Initialized optimizer or None if the name is not found.
+    """
+    if name not in _optimizer_name:
+        _initialize_optimizer(name)
+    optimizer_class = _optimizer_name.get(name)
+    if optimizer_class:
+        return optimizer_class(**kwargs)
+    else:
+        return None
+
+
+def get_all_optimizers() -> Dict[str, Callable]:
+    """
+    Returns all available optimizers, automatically initializing them if necessary.
+
+    Returns
+    -------
+    optimizers: Dict[str, Callable]
+        A dictionary of all available optimizers.
+    """
+    if not _optimizer_name:
+        for opt_name in ["Adadelta", "Adafactor", "Adagrad", "Adam", "AdamW", "Adamax",
+                         "Ftrl", "Lion", "Nadam", "RMSprop", "SGD"]:
+            _initialize_optimizer(opt_name)
+    return _optimizer_name
