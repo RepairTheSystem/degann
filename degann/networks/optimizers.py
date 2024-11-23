@@ -1,6 +1,6 @@
 from typing import Callable, Dict, Optional
 import torch.optim as optim
-from ..config import _framework  
+from degann.config import _framework  
 from tensorflow.keras import optimizers as tf_optimizers
 
 _optimizer_name: Dict[str, Callable] = {}

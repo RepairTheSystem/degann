@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Dict, Optional
 
-from ..config import _framework  
+from degann.config import _framework  
 import tensorflow as tf
 from tensorflow import keras
 

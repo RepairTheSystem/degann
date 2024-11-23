@@ -8,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 
+from degann.config import _framework
 from degann.networks import activations
 from degann.networks.config_format import LAYER_DICT_NAMES
 
@@ -304,50 +305,29 @@ is the name of the activation function.
     def get_activation(self) -> str:
         return self.activation_name
 
-class DenseFactory:
+
+def create_dense_layer(**kwargs):
     """
-    Factory for creating Dance layers for TensorFlow and PyTorch.
+    Creating a Dense layer depending on the framework.
 
     Parameters
     ----------
-    framework : strategy
-        The name of the framework ('tensorflow' or 'pwtorch').
+    kwargs : dict
+        Parameters for creating a layer.
+
+    Returns
+    -------
+    Layer : TensorflowDense or PyTorchDense
+        A tight connection layer for the selected framework.
+
+    Exceptions
+    ----------
+    Value Error
+        If the framework is not supported.
     """
-
-    def __init__(self, framework: str):
-        """
-        Initialization of the factory specifying the framework.
-
-        Parameters
-        ----------
-        framework : strategy
-            The name of the framework.
-        """
-        self.framework = framework
-        self.framework = framework.lower()
-
-    def create_dense_layer(self, **kwargs):
-        """
-        Creating a Dense layer depending on the framework.
-
-        Parameters
-        ----------
-        kwargs : dict
-            Parameters for creating a layer.
-
-        Returns
-        -------
-        Layer : TensorflowDense or PyTorchDense
-            A tight connection layer for the selected framework.
-
-        Exceptions
-        ----------
-        Value Error
-            If the framework is not supported.
-        """
-        if self.framework == 'tensorflow':
-            return TensorflowDense(**kwargs)
-        elif self.framework == 'pytorch':
-            return PyTorchDense(**kwargs)
-        else:
-            raise ValueError(f"Unsupported framework: {self.framework}")
+    if _framework == 'tensorflow':
+        return TensorflowDense(**kwargs)
+    elif _framework == 'pytorch':
+        return PyTorchDense(**kwargs)
+    else:
+        raise ValueError(f"Unsupported framework: {_framework}")

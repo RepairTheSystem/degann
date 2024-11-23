@@ -1,11 +1,11 @@
 from typing import Callable, Dict, Optional
-from ..config import _framework  
+from degann.config import _framework  
 import tensorflow as tf
 import torch
 import torch.nn.functional as F
 
 # An empty dictionary for activation, which will be filled on request
-_activation_name: Dict[str, Callable] = {}
+activations: Dict[str, Callable] = {}
 
 def parabolic_tf(x: tf.Tensor, beta: float = 0, p: float = 1 / 5) -> tf.Tensor:
     return tf.where(x >= 0, beta + tf.sqrt(2 * p * x), beta - tf.sqrt(-2 * p * x))
@@ -16,14 +16,14 @@ def parabolic_torch(x: torch.Tensor, beta: float = 0, p: float = 1 / 5) -> torch
 # Factory for adding activations to the dictionary depending on the framework
 def _initialize_activation(name: str):
     """
-    Initializes the activation function and adds it to _activation_name.
+    Initializes the activation function and adds it to activations.
     
     Parameters
     ----------
     name: str
         Name of the activation function
     """
-    global _activation_name
+    global activations
 
     if _framework == 'tensorflow':
         activations = {
@@ -61,7 +61,7 @@ def _initialize_activation(name: str):
         raise ValueError(f"Unsupported framework: {_framework}")
 
     if name in activations:
-        _activation_name[name] = activations[name]
+        activations[name] = activations[name]
     else:
         raise ValueError(f"Activation function '{name}' is not supported by {_framework}")
 
@@ -80,9 +80,9 @@ def get(name: str) -> Optional[Callable]:
         func: Optional[Callable]
             Activation function or None if the name is not found
     """
-    if name not in _activation_name:
+    if name not in activations:
         _initialize_activation(name)
-    return _activation_name.get(name)
+    return activations.get(name)
 
 
 def get_all_activations() -> Dict[str, Callable]:
@@ -94,9 +94,9 @@ def get_all_activations() -> Dict[str, Callable]:
         func: Dict[str, Callable]
             Dictionary of all activation functions
     """
-    if not _activation_name:
+    if not activations:
         for act_name in ["elu", "relu", "gelu", "selu", "exponential", "linear",
                          "sigmoid", "hard_sigmoid", "swish", "tanh", "softplus", 
                          "softsign", "parabolic"]:
             _initialize_activation(act_name)
-    return _activation_name
+    return activations
