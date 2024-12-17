@@ -1,14 +1,18 @@
 import os
-from typing import List, Optional, Dict, Callable
+from typing import List, Optional, Dict, Callable, Union
 
 import tensorflow as tf
 from tensorflow import keras
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
 
 from degann.networks.config_format import LAYER_DICT_NAMES
 from degann.networks import layer_creator, losses, metrics, cpp_utils
 from degann.networks import optimizers
 from degann.networks.layers.tf_dense import TensorflowDense
-
+from degann.networks.activations import activations
 
 class TensorflowDenseNet(tf.keras.Model):
     def __init__(
@@ -479,3 +483,85 @@ class TensorflowDenseNet(tf.keras.Model):
         activation: list
         """
         return [layer.get_activation for layer in self.blocks]
+
+class ModuleLambda(nn.Module):
+    """
+    PyTorch не предоставляет стандартного класса для оборачивания функций,
+    поэтому создадим его:
+    """
+    def __init__(self, func: Callable):
+        super().__init__()
+        self.func = func
+
+    def forward(self, x):
+        return self.func(x)
+
+class PtDenseNet(nn.Module):
+    def __init__(
+        self,
+        input_size: int,
+        block_size: List[int],
+        output_size: int,
+        activation_func: Union[Callable, List[Union[Callable, str]]],
+        weight_init: Callable,
+        bias_init: Callable,
+        **kwargs,
+    ):
+        super().__init__()
+        
+        # global activations
+
+        if not isinstance(activation_func, list):
+            activation_func = [activation_func] * (len(block_size) + 1)
+        elif len(activation_func) != len(block_size) + 1:
+            raise ValueError("Activation functions list length must match number of layers.")
+
+        activation_funcs = []
+        for af in activation_func:
+            if isinstance(af, str):
+                if af in activations:
+                    activation_funcs.append(activations[af])
+                else:
+                    raise ValueError(f"Activation function {af} is not defined in activations.")
+            else:
+                activation_funcs.append(af)
+
+        layers = []
+        in_features = input_size
+        for i, out_features in enumerate(block_size):
+            layers.append(nn.Linear(in_features, out_features))
+            if activation_funcs[i] is not None:
+                if isinstance(activation_funcs[i], type):
+                    layers.append(activation_funcs[i]())
+                else:
+                    layers.append(ModuleLambda(activation_funcs[i]))
+            in_features = out_features
+        layers.append(nn.Linear(in_features, output_size))
+        if activation_funcs[-1] is not None:
+            if isinstance(activation_funcs[-1], type):
+                layers.append(activation_funcs[-1]())
+            else:
+                layers.append(ModuleLambda(activation_funcs[-1]))
+
+        self.model = nn.Sequential(*layers)
+
+        self.apply(lambda m: weight_init(m.weight) if isinstance(m, nn.Linear) else None)
+        self.apply(lambda m: bias_init(m.bias) if isinstance(m, nn.Linear) and m.bias is not None else None)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.model(x)
+
+    def train_step(self, data: tuple, loss_func: nn.Module, optimizer: optim.Optimizer, metrics: Optional[List[Callable]] = None):
+        x, y = data
+        optimizer.zero_grad()
+        y_pred = self(x)
+        loss = loss_func(y_pred, y)
+        loss.backward()
+        optimizer.step()
+
+        results = {'loss': loss.item()}
+        if metrics:
+            for metric in metrics:
+                results[metric.__name__] = metric(y_pred, y).item()
+
+        return results

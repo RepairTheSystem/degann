@@ -33,63 +33,6 @@ class BaseLoss(ABC):
         else:
             raise ValueError(f"Unknown reduction type: {self.reduction}")
 
-# Empty dictionaries for storing loss functions
-_loss_registry: Dict[str, Callable] = {}
-
-# TensorFlow-specific loss functions
-def _initialize_tf_losses():
-    return {
-        "Huber": keras.losses.Huber(),
-        "LogCosh": keras.losses.LogCosh(),
-        "MeanAbsoluteError": keras.losses.MeanAbsoluteError(),
-        "MeanAbsolutePercentageError": keras.losses.MeanAbsolutePercentageError(),
-        "MeanSquaredError": keras.losses.MeanSquaredError(),
-        "RootMeanSquaredError": RMSE(),
-        "MeanSquaredLogarithmicError": keras.losses.MeanSquaredLogarithmicError(),
-        "RelativeAbsoluteError": RelativeAbsoluteError(),
-        "MaxAbsoluteDeviation": MaxAbsoluteDeviation(),
-        "MaxAbsolutePercentageError": MaxAbsolutePercentageError(),
-    }
-
-# PyTorch-specific loss functions
-def _initialize_torch_losses():
-    return {
-        "RelativeAbsoluteError": PyTorchRelativeAbsoluteError(),
-        "MaxAbsoluteDeviation": PyTorchMaxAbsoluteDeviation(),
-        "RootMeanSquaredError": PyTorchRMSE(),
-    }
-
-
-# Custom loss classes for TensorFlow
-class RelativeAbsoluteError(BaseLoss):
-    def __call__(self, y_true, y_pred):
-        true_mean = tf.reduce_mean(y_true)
-        numerator = tf.reduce_sum(tf.abs(y_true - y_pred))
-        denominator = tf.reduce_sum(tf.abs(y_true - true_mean))
-        denominator = tf.where(denominator == 0.0, tf.constant(1.0), denominator)
-        loss = numerator / denominator
-        return self.reduce_loss(loss)
-
-
-class MaxAbsoluteDeviation(BaseLoss):
-    def __call__(self, y_true, y_pred):
-        loss = tf.reduce_max(tf.abs(y_true - y_pred))
-        return self.reduce_loss(loss)
-
-
-class MaxAbsolutePercentageError(BaseLoss):
-    def __call__(self, y_true, y_pred):
-        loss = tf.reduce_max(tf.abs((y_true - y_pred) / y_true)) * 100.0
-        return self.reduce_loss(loss)
-
-
-class RMSE(BaseLoss):
-    def __call__(self, y_true, y_pred):
-        mse = tf.reduce_mean(tf.square(y_pred - y_true))
-        loss = tf.sqrt(mse)
-        return self.reduce_loss(loss)
-
-
 # Custom loss classes for PyTorch
 class PyTorchRelativeAbsoluteError(BaseLoss):
     def __call__(self, y_true, y_pred):
@@ -100,12 +43,10 @@ class PyTorchRelativeAbsoluteError(BaseLoss):
         loss = numerator / denominator
         return self.reduce_loss(loss)
 
-
 class PyTorchMaxAbsoluteDeviation(BaseLoss):
     def __call__(self, y_true, y_pred):
         loss = torch.max(torch.abs(y_true - y_pred))
         return self.reduce_loss(loss)
-
 
 class PyTorchRMSE(BaseLoss):
     def __call__(self, y_true, y_pred):
@@ -114,37 +55,72 @@ class PyTorchRMSE(BaseLoss):
         return self.reduce_loss(loss)
 
 
-# Factory to initialize and retrieve loss functions
-def _initialize_loss(name: str):
-    """
-    Initializes the loss function based on the framework and adds it to the registry.
+class RelativeAbsoluteError(BaseLoss):
+    def __call__(self, y_true, y_pred):
+        true_mean = tf.reduce_mean(y_true)
+        numerator = tf.reduce_sum(tf.abs(y_true - y_pred))
+        denominator = tf.reduce_sum(tf.abs(y_true - true_mean))
+        denominator = tf.where(denominator == 0.0, tf.constant(1.0), denominator)
+        loss = numerator / denominator
+        return self.reduce_loss(loss)
 
-    Parameters
-    ----------
-    name : str
-        The name of the loss function to initialize.
-    """
-    global _loss_registry
+class MaxAbsoluteDeviation(BaseLoss):
+    def __call__(self, y_true, y_pred):
+        loss = tf.reduce_max(tf.abs(y_true - y_pred))
+        return self.reduce_loss(loss)
 
-    if _framework == "tensorflow":
-        tf_losses = _initialize_tf_losses()
-        if name in tf_losses:
-            _loss_registry[name] = tf_losses[name]
-        else:
-            raise ValueError(f"Loss function '{name}' is not available in TensorFlow.")
-    elif _framework == "pytorch":
-        torch_losses = _initialize_torch_losses()
-        if name in torch_losses:
-            _loss_registry[name] = torch_losses[name]
-        else:
-            raise ValueError(f"Loss function '{name}' is not available in PyTorch.")
+class MaxAbsolutePercentageError(BaseLoss):
+    def __call__(self, y_true, y_pred):
+        loss = tf.reduce_max(tf.abs((y_true - y_pred) / y_true)) * 100.0
+        return self.reduce_loss(loss)
+
+class RMSE(BaseLoss):
+    def __call__(self, y_true, y_pred):
+        mse = tf.reduce_mean(tf.square(y_pred - y_true))
+        loss = tf.sqrt(mse)
+        return self.reduce_loss(loss)
+
+# Global dictionary for losses
+losses: Dict[str, Callable] = {}
+
+# Initialize losses based on framework
+def _initialize_losses():
+    """
+    Populates the global losses dictionary based on the selected framework.
+    """
+    global losses
+
+    if _framework == "TensorFlow": #enum
+        losses = {
+            "Huber": keras.losses.Huber(),
+            "LogCosh": keras.losses.LogCosh(),
+            "MeanAbsoluteError": keras.losses.MeanAbsoluteError(),
+            "MeanAbsolutePercentageError": keras.losses.MeanAbsolutePercentageError(),
+            "MeanSquaredError": keras.losses.MeanSquaredError(),
+            "RootMeanSquaredError": RMSE(),
+            "MeanSquaredLogarithmicError": keras.losses.MeanSquaredLogarithmicError(),
+            "RelativeAbsoluteError": RelativeAbsoluteError(),
+            "MaxAbsoluteDeviation": MaxAbsoluteDeviation(),
+            "MaxAbsolutePercentageError": MaxAbsolutePercentageError(),
+        }
+    elif _framework == "PyTorch":
+        losses = {
+            "RelativeAbsoluteError": PyTorchRelativeAbsoluteError(),
+            "MaxAbsoluteDeviation": PyTorchMaxAbsoluteDeviation(),
+            "RootMeanSquaredError": PyTorchRMSE(),
+        }
     else:
         raise ValueError(f"Unsupported framework: {_framework}")
 
+_initialize_losses()
 
+# Custom loss classes for TensorFlow
+
+
+# Public API for retrieving losses
 def get_loss(name: str) -> Optional[Callable]:
     """
-    Retrieves a loss function by name, initializing it if necessary.
+    Retrieves a loss function by name.
 
     Parameters
     ----------
@@ -156,25 +132,17 @@ def get_loss(name: str) -> Optional[Callable]:
     Callable
         The corresponding loss function or None if not found.
     """
-    if name not in _loss_registry:
-        _initialize_loss(name)
-    return _loss_registry.get(name)
+    if name not in losses:
+        raise ValueError(f"Loss function '{name}' is not available in {_framework}.")
+    return losses.get(name)
 
-
-def get_all_losses() -> Dict[str, Callable]:
+def get_all_loss_functions() -> Dict[str, Callable]:
     """
-    Retrieves all available loss functions, initializing them if necessary.
+    Retrieves all available loss functions.
 
     Returns
     -------
     Dict[str, Callable]
         A dictionary containing all available loss functions.
     """
-    if not _loss_registry:
-        if _framework == "tensorflow":
-            for loss_name in _initialize_tf_losses().keys():
-                _initialize_loss(loss_name)
-        elif _framework == "pytorch":
-            for loss_name in _initialize_torch_losses().keys():
-                _initialize_loss(loss_name)
-    return _loss_registry
+    return losses

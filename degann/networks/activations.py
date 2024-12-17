@@ -14,7 +14,7 @@ def parabolic_torch(x: torch.Tensor, beta: float = 0, p: float = 1 / 5) -> torch
     return torch.where(x >= 0, beta + torch.sqrt(2 * p * x), beta - torch.sqrt(-2 * p * x))
 
 # Factory for adding activations to the dictionary depending on the framework
-def _initialize_activation(name: str):
+def _initialize_activation():
     """
     Initializes the activation function and adds it to activations.
     
@@ -25,7 +25,7 @@ def _initialize_activation(name: str):
     """
     global activations
 
-    if _framework == 'tensorflow':
+    if _framework == 'TensorFlow':
         activations = {
             "elu": tf.keras.activations.elu,
             "relu": tf.keras.activations.relu,
@@ -41,7 +41,7 @@ def _initialize_activation(name: str):
             "softsign": tf.keras.activations.softsign,
             "parabolic": parabolic_tf,
         }
-    elif _framework == 'pytorch':
+    elif _framework == 'PyTorch':
         activations = {
             "elu": F.elu,
             "relu": F.relu,
@@ -60,11 +60,7 @@ def _initialize_activation(name: str):
     else:
         raise ValueError(f"Unsupported framework: {_framework}")
 
-    if name in activations:
-        activations[name] = activations[name]
-    else:
-        raise ValueError(f"Activation function '{name}' is not supported by {_framework}")
-
+_initialize_activation()
 
 def get(name: str) -> Optional[Callable]:
     """
@@ -81,7 +77,7 @@ def get(name: str) -> Optional[Callable]:
             Activation function or None if the name is not found
     """
     if name not in activations:
-        _initialize_activation(name)
+        raise ValueError(f"Unsupported activation: {name}")
     return activations.get(name)
 
 
@@ -95,8 +91,5 @@ def get_all_activations() -> Dict[str, Callable]:
             Dictionary of all activation functions
     """
     if not activations:
-        for act_name in ["elu", "relu", "gelu", "selu", "exponential", "linear",
-                         "sigmoid", "hard_sigmoid", "swish", "tanh", "softplus", 
-                         "softsign", "parabolic"]:
-            _initialize_activation(act_name)
+        raise ValueError(f"Unsupported framework: {_framework}")
     return activations

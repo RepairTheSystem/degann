@@ -1,11 +1,11 @@
 from typing import Callable, Dict, Optional
 import torch.optim as optim
 from degann.config import _framework  
-from tensorflow.keras import optimizers as tf_optimizers
+from tensorflow import keras
 
-_optimizer_name: Dict[str, Callable] = {}
+optimizers: Dict[str, Callable] = {}
 
-def _initialize_optimizer(name: str):
+def _initialize_optimizer():
     """
     Initializes the optimizer and adds it to _optimizer_name.
 
@@ -14,21 +14,22 @@ def _initialize_optimizer(name: str):
     name: string
         The name of the optimizer.
     """
-    global _optimizer_name
+    global optimizers
 
-    if _framework == 'tensorflow':
+    if _framework == 'TensorFlow':
         optimizers = {
-            "Adadelta": tf_optimizers.Adadelta,
-            "Adafactor": tf_optimizers.experimental.Adafactor,
-            "Adagrad": tf_optimizers.Adagrad,
-            "Adam": tf_optimizers.Adam,
-            "AdamW": tf_optimizers.AdamW,
-            "Adamax": tf_optimizers.Adamax,
-            "Ftrl": tf_optimizers.Ftrl,
-            "Lion": tf_optimizers.experimental.Lion,
-            "Nadam": tf_optimizers.Nadam,
-            "RMSprop": tf_optimizers.RMSprop,
-            "SGD": tf_optimizers.SGD,
+            "Adadelta": keras.optimizers.Adadelta,
+            "Adafactor": keras.optimizers.Adafactor,
+            "Adagrad": keras.optimizers.Adagrad,
+            "Adam": keras.optimizers.Adam,
+            "AdamW": keras.optimizers.AdamW,
+            "Adamax": keras.optimizers.Adamax,
+            "Ftrl": keras.optimizers.Ftrl,
+            "Lion": keras.optimizers.Lion,
+            "LossScaleOptimizer": keras.optimizers.LossScaleOptimizer,
+            "Nadam": keras.optimizers.Nadam,
+            "RMSprop": keras.optimizers.RMSprop,
+            "SGD": keras.optimizers.SGD,
         }
     elif _framework == 'pytorch':
         optimizers = {
@@ -43,11 +44,7 @@ def _initialize_optimizer(name: str):
     else:
         raise ValueError(f"Unsupported framework: {_framework}")
 
-    if name in optimizers:
-        _optimizer_name[name] = optimizers[name]
-    else:
-        raise ValueError(f"Optimizer '{name}' is not supported by {_framework}")
-
+_initialize_optimizer()
 
 def get_optimizer(name: str, **kwargs) -> Optional[Callable]:
     """
@@ -65,13 +62,7 @@ def get_optimizer(name: str, **kwargs) -> Optional[Callable]:
     optimizer: Optional[Callable]
         Initialized optimizer or None if the name is not found.
     """
-    if name not in _optimizer_name:
-        _initialize_optimizer(name)
-    optimizer_class = _optimizer_name.get(name)
-    if optimizer_class:
-        return optimizer_class(**kwargs)
-    else:
-        return None
+    return optimizers.get(name)
 
 
 def get_all_optimizers() -> Dict[str, Callable]:
@@ -83,8 +74,4 @@ def get_all_optimizers() -> Dict[str, Callable]:
     optimizers: Dict[str, Callable]
         A dictionary of all available optimizers.
     """
-    if not _optimizer_name:
-        for opt_name in ["Adadelta", "Adafactor", "Adagrad", "Adam", "AdamW", "Adamax",
-                         "Ftrl", "Lion", "Nadam", "RMSprop", "SGD"]:
-            _initialize_optimizer(opt_name)
-    return _optimizer_name
+    return optimizers

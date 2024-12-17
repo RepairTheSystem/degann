@@ -1,14 +1,18 @@
 import json
 from collections import defaultdict
-from typing import List, Optional, Dict, Union
+from typing import List, Optional, Dict, Union, Callable, Tuple
 
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
 
 from degann.networks.config_format import HEADER_OF_APG_FILE
 from degann.networks.topology.tf_densenet import TensorflowDenseNet
-
+from degann.networks.topology.tf_densenet import PtDenseNet
 
 def _get_act_and_init(
     kwargs: dict,
@@ -57,7 +61,7 @@ class IModel(object):
         weight_init=tf.random_uniform_initializer(minval=-1, maxval=1),
         bias_init=tf.random_uniform_initializer(minval=-1, maxval=1),
         name="net",
-        net_type="DenseNet",
+        net_type="PtDendeNet",
         is_debug=False,
         **kwargs,
     ):
@@ -510,4 +514,161 @@ class IModel(object):
 
 
 _create_functions = defaultdict(lambda: TensorflowDenseNet)
-_create_functions["DenseNet"] = TensorflowDenseNet
+_create_functions["PtDenseNet"] = PtDenseNet
+
+
+class PtIModel(nn.Module):
+    def __init__(
+        self,
+        input_size: int,
+        block_size: List[int],
+        output_size: int,
+        activation_func: Callable = nn.Sigmoid,
+        weight_init: Callable = nn.init.uniform_,
+        bias_init: Callable = nn.init.uniform_,
+        name: str = "net",
+        net_type: str = "PtDenseNet",
+        is_debug: bool = False,
+        **kwargs,
+    ):
+        super().__init__()
+        self.network = _create_functions[net_type](
+            input_size,
+            block_size,
+            output_size,
+            activation_func=activation_func,
+            weight_init=weight_init,
+            bias_init=bias_init,
+            **kwargs,
+        )
+        self._input_size = input_size
+        self._output_size = output_size
+        self._shape = block_size
+        self._name = name
+        self._is_debug = is_debug
+
+    def compile(
+        self,
+        learning_rate: float = 1e-2,
+        optimizer: str = "SGD",
+        loss_func: str = "MSELoss",
+        metrics: Optional[List[str]] = None,
+    ) -> None:
+        if not hasattr(nn, loss_func):
+            raise ValueError(f"Loss function {loss_func} is not defined in torch.nn.")
+        if not hasattr(optim, optimizer):
+            raise ValueError(f"Optimizer {optimizer} is not defined in torch.optim.")
+
+        self.loss_func = getattr(nn, loss_func)()
+        self.optimizer = getattr(optim, optimizer)(self.parameters(), lr=learning_rate)
+        self.metrics = metrics or []
+    
+    def train(
+        self,
+        x_data: torch.Tensor,
+        y_data: Optional[torch.Tensor] = None,
+        validation_split: float = 0.0,
+        validation_data: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+        epochs: int = 10,
+        mini_batch_size: int = None,
+        callbacks: Optional[List] = None,
+        verbose: bool = True,
+    ) -> List[Dict[str, float]]:
+
+        dataset = torch.utils.data.TensorDataset(x_data, y_data)
+        if validation_split > 0.0:
+            val_size = int(len(dataset) * validation_split)
+            train_size = len(dataset) - val_size
+            train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, val_size])
+        elif validation_data is not None:
+            train_dataset = dataset
+            val_dataset = torch.utils.data.TensorDataset(*validation_data)
+        else:
+            train_dataset = dataset
+            val_dataset = None
+
+        batch_size = mini_batch_size if mini_batch_size is not None else len(train_dataset)
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+
+        if val_dataset is not None:
+            val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
+        else:
+            val_loader = None
+
+        history = []
+        for epoch in range(epochs):
+            # Обучение
+            self.network.train()
+            epoch_loss = 0.0
+            metric_results = defaultdict(float)
+
+            for inputs, targets in train_loader:
+                step_results = self.network.train_step(
+                    (inputs, targets),
+                    loss_func=self.loss_func,
+                    optimizer=self.optimizer,
+                    metrics=self.metrics,
+                )
+                epoch_loss += step_results["loss"]
+                for k, v in step_results.items():
+                    if k != "loss":
+                        metric_results[k] += v
+
+            num_batches = len(train_loader)
+            epoch_metrics = {k: v / num_batches for k, v in metric_results.items()}
+            train_loss = epoch_loss / num_batches
+
+            # Валидация
+            if val_loader is not None:
+                self.network.eval()
+                val_loss = 0.0
+                val_metric_results = defaultdict(float)
+                with torch.no_grad():
+                    for inputs, targets in val_loader:
+                        outputs = self.network(inputs)
+                        loss = self.loss_func(outputs, targets)
+                        val_loss += loss.item()
+                        if self.metrics:
+                            for metric in self.metrics:
+                                val_metric_results[metric.__name__] += metric(outputs, targets).item()
+
+                num_val_batches = len(val_loader)
+                val_metrics = {k: v / num_val_batches for k, v in val_metric_results.items()}
+                val_loss /= num_val_batches
+            else:
+                val_loss = None
+                val_metrics = {}
+
+            # Запись истории
+            epoch_history = {'loss': train_loss, **epoch_metrics}
+            if val_loss is not None:
+                epoch_history['val_loss'] = val_loss
+                epoch_history.update({f'val_{k}': v for k, v in val_metrics.items()})
+            history.append(epoch_history)
+
+            if verbose:
+                log = f"Эпоха {epoch+1}/{epochs}, Потеря: {train_loss:.4f}"
+                if val_loss is not None:
+                    log += f", Вал. потеря: {val_loss:.4f}"
+                for k, v in epoch_metrics.items():
+                    log += f", {k}: {v:.4f}"
+                for k, v in val_metrics.items():
+                    log += f", вал_{k}: {v:.4f}"
+                print(log)
+
+        return history
+
+    def evaluate(self, x_data: torch.Tensor, y_data: torch.Tensor) -> Dict[str, float]:
+        self.network.eval()
+        with torch.no_grad():
+            predictions = self.network(x_data)
+            loss = self.loss_func(predictions, y_data).item()
+            results = {"loss": loss}
+            if self.metrics:
+                for metric in self.metrics:
+                    if callable(metric):
+                        results[metric.__name__] = metric(y_data, predictions)
+                    else:
+                        metric_func = get_metric(metric)
+                        results[metric] = metric_func(y_data, predictions)
+            return results
