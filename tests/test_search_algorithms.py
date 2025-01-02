@@ -10,22 +10,27 @@ from degann.search_algorithms import (
 )
 
 
+@pytest.fixture
+def folder_path():
+    return "./tests/data"
+
+
 @pytest.mark.parametrize(
     "path_to_train_data, path_to_validate_data",
     [
         (
-            "./tests/data/exp_150_train.csv",
-            "./tests/data/exp_150_validate.csv",
+            "/exp_150_train.csv",
+            "/exp_150_validate.csv",
         ),
     ],
 )
-def test_pattern_search(path_to_train_data, path_to_validate_data):
-    train_data = np.genfromtxt(path_to_train_data, delimiter=",")
+def test_pattern_search(path_to_train_data, path_to_validate_data, folder_path):
+    train_data = np.genfromtxt(folder_path + path_to_train_data, delimiter=",")
     train_data_x, train_data_y = train_data[:, 0], train_data[:, 1]
     train_data_x = train_data_x.reshape((1, -1)).T
     train_data_y = train_data_y.reshape((1, -1)).T
 
-    validation_data = np.genfromtxt(path_to_validate_data, delimiter=",")
+    validation_data = np.genfromtxt(folder_path + path_to_validate_data, delimiter=",")
     validation_data_x, validation_data_y = validation_data[:, 0], validation_data[:, 1]
     validation_data_x = validation_data_x.reshape((1, -1)).T
     validation_data_y = validation_data_y.reshape((1, -1)).T
@@ -57,20 +62,22 @@ def test_pattern_search(path_to_train_data, path_to_validate_data):
     "path_to_train_data, path_to_validate_data, in_size, out_size",
     [
         (
-            "./tests/data/exp_150_train.csv",
-            "./tests/data/exp_150_validate.csv",
+            "/exp_150_train.csv",
+            "/exp_150_validate.csv",
             1,
             1,
         ),
     ],
 )
-def test_grid_search(path_to_train_data, path_to_validate_data, in_size, out_size):
-    train_data = np.genfromtxt(path_to_train_data, delimiter=",")
+def test_grid_search(
+    path_to_train_data, path_to_validate_data, folder_path, in_size, out_size
+):
+    train_data = np.genfromtxt(folder_path + path_to_train_data, delimiter=",")
     train_data_x, train_data_y = train_data[:, 0], train_data[:, 1]
     train_data_x = train_data_x.reshape((1, -1)).T
     train_data_y = train_data_y.reshape((1, -1)).T
 
-    validation_data = np.genfromtxt(path_to_validate_data, delimiter=",")
+    validation_data = np.genfromtxt(folder_path + path_to_validate_data, delimiter=",")
     validation_data_x, validation_data_y = validation_data[:, 0], validation_data[:, 1]
     validation_data_x = validation_data_x.reshape((1, -1)).T
     validation_data_y = validation_data_y.reshape((1, -1)).T
@@ -102,20 +109,22 @@ def test_grid_search(path_to_train_data, path_to_validate_data, in_size, out_siz
     "path_to_train_data, path_to_validate_data, in_size, out_size",
     [
         (
-            "./tests/data/exp_150_train.csv",
-            "./tests/data/exp_150_validate.csv",
+            "/exp_150_train.csv",
+            "/exp_150_validate.csv",
             1,
             1,
         ),
     ],
 )
-def test_random_search(path_to_train_data, path_to_validate_data, in_size, out_size):
-    train_data = np.genfromtxt(path_to_train_data, delimiter=",")
+def test_random_search(
+    path_to_train_data, path_to_validate_data, folder_path, in_size, out_size
+):
+    train_data = np.genfromtxt(folder_path + path_to_train_data, delimiter=",")
     train_data_x, train_data_y = train_data[:, 0], train_data[:, 1]
     train_data_x = train_data_x.reshape((1, -1)).T
     train_data_y = train_data_y.reshape((1, -1)).T
 
-    validation_data = np.genfromtxt(path_to_validate_data, delimiter=",")
+    validation_data = np.genfromtxt(folder_path + path_to_validate_data, delimiter=",")
     validation_data_x, validation_data_y = validation_data[:, 0], validation_data[:, 1]
     validation_data_x = validation_data_x.reshape((1, -1)).T
     validation_data_y = validation_data_y.reshape((1, -1)).T
@@ -149,20 +158,20 @@ def test_random_search(path_to_train_data, path_to_validate_data, in_size, out_s
     "path_to_train_data, path_to_validate_data, in_size, out_size",
     [
         (
-            "./tests/data/exp_150_train.csv",
-            "./tests/data/exp_150_validate.csv",
+            "/exp_150_train.csv",
+            "/exp_150_validate.csv",
             1,
             1,
         ),
     ],
 )
-def test_sam(path_to_train_data, path_to_validate_data, in_size, out_size):
-    train_data = np.genfromtxt(path_to_train_data, delimiter=",")
+def test_sam(path_to_train_data, path_to_validate_data, folder_path, in_size, out_size):
+    train_data = np.genfromtxt(folder_path + path_to_train_data, delimiter=",")
     train_data_x, train_data_y = train_data[:, 0], train_data[:, 1]
     train_data_x = train_data_x.reshape((1, -1)).T
     train_data_y = train_data_y.reshape((1, -1)).T
 
-    validation_data = np.genfromtxt(path_to_validate_data, delimiter=",")
+    validation_data = np.genfromtxt(folder_path + path_to_validate_data, delimiter=",")
     validation_data_x, validation_data_y = validation_data[:, 0], validation_data[:, 1]
     validation_data_x = validation_data_x.reshape((1, -1)).T
     validation_data_y = validation_data_y.reshape((1, -1)).T

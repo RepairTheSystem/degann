@@ -267,7 +267,9 @@ def generate_neighbor(
                 case 1:  # add block
                     if len(curr_code.blocks) < max_length:
                         new_block = alphabet[random.randint(0, len(alphabet) - 1)]
-                        curr_code = CodeParameter("".join(curr_code.blocks) + new_block, block_size)
+                        curr_code = CodeParameter(
+                            "".join(curr_code.blocks) + new_block, block_size
+                        )
                 case 2:  # increase block size
                     current_block_size = int(curr_code.blocks[chosen_block][:-1], 16)
                     max_block_size = 15**CodeParameter.block_size

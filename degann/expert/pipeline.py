@@ -17,7 +17,7 @@ def execute_pipeline(
     additional_losses: List[str] = None,
     additional_optimizers: List[str] = None,
     val_data=None,
-    **kwargs
+    **kwargs,
 ) -> tuple[float, dict]:
     """
     This function sequentially launches algorithms for searching the topology of a neural network
@@ -81,7 +81,9 @@ def execute_pipeline(
             optimizer,
             result_nn,
             last_iteration,
-        ) = random_search_endless(verbose=True, **values, **search_algorithm_arguments, **kwargs)
+        ) = random_search_endless(
+            verbose=True, **values, **search_algorithm_arguments, **kwargs
+        )
         print(f"Ended {i} launch of random search")
         if train_loss <= values["threshold"]:
             return train_loss, result_nn
