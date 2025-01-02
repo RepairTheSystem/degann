@@ -207,6 +207,7 @@ def simulated_annealing(
         min_length=nn_min_length,
         max_length=nn_max_length,
         alphabet=nn_alphabet,
+        block_size=alphabet_block_size,
     )
     if start_net is None:
         b, a = decode(
@@ -261,6 +262,7 @@ def simulated_annealing(
         gen_neighbor = choose_neighbor(
             method_for_generate_next_nn,
             alphabet=nn_alphabet,
+            block_size=alphabet_block_size,
             parameters=(gen[0].value(), gen[1].value()),
             distance=distance,
             min_epoch=min_epoch,

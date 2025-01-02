@@ -5,6 +5,7 @@ import tensorflow as tf
 from tensorflow import keras
 
 
+@tf.function
 def sign(x):
     return tf.where(x < 0.0, -1.0, 1.0)
 

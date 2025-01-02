@@ -7,6 +7,7 @@ def perceptron_threshold(x, threshold: float = 1.0):
     return tf.where(x >= threshold, 1.0, 0.0)
 
 
+@tf.function
 def parabolic(x: tf.Tensor, beta: float = 0, p: float = 1 / 5):
     """
     Activation function is described in https://rairi.frccsc.ru/en/publications/426
@@ -25,7 +26,7 @@ def parabolic(x: tf.Tensor, beta: float = 0, p: float = 1 / 5):
     new_x: tf.Tensor
         Data vector after applying activation function
     """
-    return tf.where(x >= 0, beta + tf.sqrt(2 * p * x), beta - tf.sqrt(-2 * p * x))
+    return tf.where(x >= 0.0, beta + tf.sqrt(2.0 * p * x), beta - tf.sqrt(-2.0 * p * x))
 
 
 _activation_name = {

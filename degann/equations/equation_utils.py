@@ -111,12 +111,12 @@ def build_plot(
         if is_debug:
             print("End build y data from network")
         for i, y_i in enumerate(y):
-            plt.plot(x, y_i, "-", label=f"{i} {labels[num_nn]}")
+            plt.plot(x, y_i, "-", color="blue", label=f"{i} {labels[num_nn]}")
     if true_data is not None:
         if len(labels) == len(network):
             plt.plot(true_data[0], true_data[1], ".", label="function")
         else:
-            plt.plot(true_data[0], true_data[1], ".", label=f"{labels[-1]}")
+            plt.plot(true_data[0], true_data[1], ".", color="red", label=f"{labels[-1]}")
     plt.title(title)
     plt.legend()
     plt.show()

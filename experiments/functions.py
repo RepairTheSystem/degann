@@ -16,7 +16,7 @@ __all__ = [
 
 from scipy.integrate import solve_ivp
 
-from degann import SystemODE
+from degann.equations import SystemODE
 
 
 def LF_ODE_1_solution(x):

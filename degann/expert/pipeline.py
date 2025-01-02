@@ -72,6 +72,7 @@ def execute_pipeline(
         "alphabet_offset": parameters["nn_alphabet_offset"],
     }
 
+    best_loss, best_nn = 1e6, dict()
     for i in range(parameters["launch_count_random_search"]):
         (
             train_loss,
@@ -80,9 +81,13 @@ def execute_pipeline(
             optimizer,
             result_nn,
             last_iteration,
-        ) = random_search_endless(**values, **search_algorithm_arguments, **kwargs)
+        ) = random_search_endless(verbose=True, **values, **search_algorithm_arguments, **kwargs)
+        print(f"Ended {i} launch of random search")
         if train_loss <= values["threshold"]:
             return train_loss, result_nn
+        if train_loss <= best_loss:
+            best_loss = train_loss
+            best_nn = result_nn
     print("Random search didn't find any results")
 
     for i in range(parameters["launch_count_simulated_annealing"]):
@@ -94,8 +99,12 @@ def execute_pipeline(
             result_nn,
             last_iteration,
         ) = simulated_annealing(**values, **search_algorithm_arguments, **kwargs)
+        print(f"Ended {i} launch of SAM")
         if train_loss <= values["threshold"]:
             return train_loss, result_nn
+        if train_loss <= best_loss:
+            best_loss = train_loss
+            best_nn = result_nn
     print("Simulated annealing didn't find any results")
 
     if run_grid_search:
@@ -113,4 +122,4 @@ def execute_pipeline(
 
         return train_loss, result_nn
 
-    return 10**9, {}
+    return best_loss, best_nn

@@ -25,10 +25,11 @@ class CodeParameter(MetaParameter):
     block_size = 1
     exp_size = 10
 
-    def __init__(self, s: Union[str, "CodeParameter"]):
+    def __init__(self, s: Union[str, "CodeParameter"], block_size: int):
         if isinstance(s, CodeParameter):
             s = s.value()
         self.code = s
+        self.block_size = block_size
         self.blocks = [
             self.code[i : i + self.block_size + 1]
             for i in range(0, len(self.code), self.block_size + 1)
@@ -148,6 +149,7 @@ def choose_neighbor(method: Callable, **kwargs):
 
 def random_generate(
     alphabet: list[str],
+    block_size: int,
     min_epoch: int = 100,
     max_epoch: int = 700,
     min_length: int = 1,
@@ -160,6 +162,8 @@ def random_generate(
     ----------
     alphabet: list[str]
         Alphabet defining possible layers of a neural network
+    block_size: int
+        Number of letters allocated to encode the size of one layer
     min_epoch: int
         Minimum number of training epochs
     max_epoch: int
@@ -180,11 +184,13 @@ def random_generate(
     for i in range(block):
         code += alphabet[random.randint(0, len(alphabet) - 1)]
     epoch = random.randint(min_epoch, max_epoch)
-    return CodeParameter(code), EpochParameter(epoch)
+
+    return CodeParameter(code, block_size), EpochParameter(epoch)
 
 
 def generate_neighbor(
     alphabet: list[str],
+    block_size: int,
     parameters: tuple[str, int],
     distance: int = 150,
     min_epoch: int = 100,
@@ -199,6 +205,8 @@ def generate_neighbor(
     ----------
     alphabet: list[str]
         Alphabet defining possible layers of a neural network
+    block_size: int
+        Number of letters allocated to encode the size of one layer
     parameters: tuple[str, int]
         Start point
     distance: int
@@ -221,11 +229,11 @@ def generate_neighbor(
     epoch = parameters[1]
     is_stop = 0
     new_epoch = EpochParameter(epoch)
-    new_code = CodeParameter(code)
+    new_code = CodeParameter(code, block_size)
 
     while distance > 0 and is_stop == 0:
         branch = random.random()
-        curr_code = CodeParameter(new_code.value())
+        curr_code = CodeParameter(new_code.value(), block_size)
         if branch < 0.33:  # change epoch
             sign = random.random()
             if sign < 0.66:  # new epoch more than previous
@@ -259,7 +267,7 @@ def generate_neighbor(
                 case 1:  # add block
                     if len(curr_code.blocks) < max_length:
                         new_block = alphabet[random.randint(0, len(alphabet) - 1)]
-                        curr_code = CodeParameter("".join(curr_code.blocks) + new_block)
+                        curr_code = CodeParameter("".join(curr_code.blocks) + new_block, block_size)
                 case 2:  # increase block size
                     current_block_size = int(curr_code.blocks[chosen_block][:-1], 16)
                     max_block_size = 15**CodeParameter.block_size
@@ -298,7 +306,7 @@ def generate_neighbor(
                         curr_code.blocks[chosen_block] = new_block
                 case 4:  # remove last block
                     if len(curr_code.blocks) > min_length:
-                        temp = CodeParameter(curr_code.value())
+                        temp = CodeParameter(curr_code.value(), block_size)
                         temp.blocks.pop()
                         if abs(temp.distance(curr_code)) < distance:
                             curr_code.blocks.pop()

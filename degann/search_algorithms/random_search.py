@@ -100,6 +100,7 @@ def random_search(
             min_length=nn_min_length,
             max_length=nn_max_length,
             alphabet=nn_alphabet,
+            block_size=alphabet_block_size,
         )
 
         b, a = decode(
