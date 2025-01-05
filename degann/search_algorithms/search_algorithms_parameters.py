@@ -6,7 +6,10 @@ from degann.search_algorithms.generate import generate_neighbor
 from degann.search_algorithms.nn_code import default_alphabet
 import numpy.typing as npt
 
-from degann.search_algorithms.simulated_annealing_functions import temperature_lin, distance_const
+from degann.search_algorithms.simulated_annealing_functions import (
+    temperature_lin,
+    distance_const,
+)
 from degann.search_algorithms.utils import add_useless_argument
 
 
@@ -49,17 +52,34 @@ class BaseSearchParameters:
     logging: bool
         Logging search process to file
     """
+
     __slots__ = [
-        "input_size", "output_size", "data", "val_data", "nn_max_length", "nn_min_length", "nn_alphabet_block_size",
-        "nn_alphabet_offset", "nn_alphabet",
-        "min_epoch", "max_epoch", "loss_function", "optimizer", "callbacks", "logging", "file_name", "metrics"
+        "input_size",
+        "output_size",
+        "data",
+        "val_data",
+        "nn_max_length",
+        "nn_min_length",
+        "nn_alphabet_block_size",
+        "nn_alphabet_offset",
+        "nn_alphabet",
+        "min_epoch",
+        "max_epoch",
+        "loss_function",
+        "optimizer",
+        "callbacks",
+        "logging",
+        "file_name",
+        "metrics",
     ]
 
     def __init__(self) -> None:
         self.input_size: int
         self.output_size: int
         self.data: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]
-        self.val_data: Optional[tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]] = None
+        self.val_data: Optional[
+            tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]
+        ] = None
         self.nn_max_length: int = 4
         self.nn_min_length: int = 1
         self.nn_alphabet_block_size: int = 1
@@ -106,9 +126,8 @@ class GridSearchParameters(BaseSearchParameters):
     loss: list[str]
         list of loss functions
     """
-    __slots__ = [
-        "epoch_step", "optimizers", "losses"
-    ]
+
+    __slots__ = ["epoch_step", "optimizers", "losses"]
 
     def __init__(self, parent: BaseSearchParameters) -> None:
         super().__init__()
@@ -128,9 +147,8 @@ class RandomSearchParameters(BaseSearchParameters):
         The number of iterations that will be carried out within the algorithm before completion
         (specifically, the number of trained neural networks)
     """
-    __slots__ = [
-        "iterations"
-    ]
+
+    __slots__ = ["iterations"]
 
     def __init__(self, parent: BaseSearchParameters) -> None:
         super().__init__()
@@ -149,9 +167,8 @@ class RandomEarlyStoppingSearchParameters(RandomSearchParameters):
     max_launches: int
         Training will stop when the number of iterations of the algorithm exceeds this parameter
     """
-    __slots__ = [
-        "max_launches", "loss_threshold"
-    ]
+
+    __slots__ = ["max_launches", "loss_threshold"]
 
     def __init__(self, parent: BaseSearchParameters) -> None:
         super().__init__(parent)
@@ -174,14 +191,20 @@ class SimulatedAnnealingSearchParameters(RandomEarlyStoppingSearchParameters):
     distance_method: Callable
         Method that sets the boundaries of the neighborhood around the current point
     """
+
     __slots__ = [
-        "start_net", "method_for_generate_next_nn", "temperature_method", "distance_method"
+        "start_net",
+        "method_for_generate_next_nn",
+        "temperature_method",
+        "distance_method",
     ]
 
     # iterations doesn't matter in this search algorithm
     def __init__(self, parent: BaseSearchParameters) -> None:
         super().__init__(parent)
         self.start_net: Optional[dict] = None
-        self.method_for_generate_next_nn: Callable = add_useless_argument(generate_neighbor)
+        self.method_for_generate_next_nn: Callable = add_useless_argument(
+            generate_neighbor
+        )
         self.temperature_method: Callable = add_useless_argument(temperature_lin)
         self.distance_method: Callable = add_useless_argument(distance_const(150))

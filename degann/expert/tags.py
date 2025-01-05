@@ -15,7 +15,18 @@ class EquationType(Enum):
 
     @classmethod
     def __iter__(cls):
-        values = [cls.SIN, cls.LIN, cls.EXP, cls.LOG, cls.GAUSS, cls.HYPERBOL, cls.CONST, cls.SIG, cls.MULTIDIM, cls.UNKNOWN]
+        values = [
+            cls.SIN,
+            cls.LIN,
+            cls.EXP,
+            cls.LOG,
+            cls.GAUSS,
+            cls.HYPERBOL,
+            cls.CONST,
+            cls.SIG,
+            cls.MULTIDIM,
+            cls.UNKNOWN,
+        ]
         return values.__iter__()
 
 
