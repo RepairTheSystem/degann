@@ -3,9 +3,10 @@ Provide class for solve system of ODE
 """
 
 from types import FunctionType
-from typing import Union, List, Tuple
+from typing import Optional, Union, List, Tuple
 
 import numpy as np
+import numpy.typing as npt
 from matplotlib import pyplot as plt
 from scipy.integrate import solve_ivp
 
@@ -24,14 +25,14 @@ class SystemODE(object):
         self._size = 0
         self._debug = debug
 
-    def _f(self, t, y):
+    def _f(self, t: float, y: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """
         Additional function for scipy.solve_ivp
 
         Parameters
         ----------
-        t
-        y: list
+        t: float
+        y: npt.NDArray[float]
 
         Returns
         -------
@@ -40,7 +41,7 @@ class SystemODE(object):
         res = []
         for i, y_i in enumerate(y):
             res.append(self._func[i](*y))
-        return res
+        return np.array(res)
 
     def prepare_equations(self, n: int, equations: List[List[str]]) -> None:
         """
@@ -69,7 +70,7 @@ class SystemODE(object):
             self._initial_values.append(equation_utils.extract_iv(cond[1])[1])
 
     def solve(
-        self, interval: Tuple[float, float], points: Union[int, list] = None
+        self, interval: Tuple[float, float], points: Optional[Union[int, list]] = None
     ) -> None:
         """
         Solve given equations
@@ -81,17 +82,21 @@ class SystemODE(object):
         points: int | list
             Amount of points per interval (or list of points)
         """
-        t_span = np.array([interval[0], interval[1]])
+        t_span: npt.NDArray[np.float64] = np.array(
+            [interval[0], interval[1]], dtype=float
+        )
         if points is not None:
             if isinstance(points, list):
-                times = points
+                times = np.array(points)
             else:
-                times = np.linspace(t_span[0], t_span[1], points)
+                times = np.linspace(t_span[0], t_span[1], points, dtype=float)
+            # scipy typing is very strange
             self._sol = solve_ivp(
-                self._f, t_span, self._initial_values, t_eval=times, method="LSODA"
+                self._f, t_span, self._initial_values, t_eval=times, method="LSODA"  # type: ignore
             )
         else:
-            self._sol = solve_ivp(self._f, t_span, self._initial_values, method="LSODA")
+            # scipy typing is very strange
+            self._sol = solve_ivp(self._f, t_span, self._initial_values, method="LSODA")  # type: ignore
         if self._debug:
             print("Success solve")
 
@@ -109,7 +114,7 @@ class SystemODE(object):
             plt.legend()
             plt.show()
 
-    def build_table(self, eq_num: list = None) -> np.ndarray:
+    def build_table(self, eq_num: Optional[list] = None) -> np.ndarray:
         """
         Builds a table for solution
 

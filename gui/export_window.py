@@ -20,11 +20,11 @@ _export_nn_text = (
 
 
 class ExportNNLayout:
-    def __init__(self, centralwidget):
+    def __init__(self, centralwidget: QtWidgets.QWidget):
         self.centralwidget = centralwidget
         self.setup_ui()
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         self.main_area = QtWidgets.QVBoxLayout(self.centralwidget)
         self.main_area.setObjectName("ExportNNLayout")
 
@@ -37,7 +37,7 @@ class ExportNNLayout:
 
         self.main_area.addLayout(self.setup_export_area())
 
-    def setup_export_area(self):
+    def setup_export_area(self) -> QtWidgets.QVBoxLayout:
         export_area = QtWidgets.QVBoxLayout()
         export_area.setObjectName("export_area")
 

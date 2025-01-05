@@ -1,11 +1,8 @@
-import time
-
 import numpy as np
 
-import degann.search_algorithms.pattern_search
-from degann.networks import losses, callbacks
+from degann.networks import losses
 from degann.networks import IModel
-from experiments.functions import LF_ODE_1_solution, ST_S_ODE_3_table
+from experiments.functions import LF_ODE_1_solution
 from tests.utils import init_params
 
 #

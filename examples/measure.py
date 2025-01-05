@@ -2,17 +2,18 @@ import time
 from random import random, randint
 import numpy as np
 
-from degann import decode, build_plot
+from degann.equations import build_plot
 from degann.networks import callbacks
 from degann.networks.imodel import IModel
+from degann.search_algorithms import decode
 from experiments.functions import ST_S_ODE_3_table
 
 
-def mean(a):
+def mean(a: list) -> float:
     return sum(a) / len(a)
 
 
-def standart_deviation(a):
+def standart_deviation(a: list) -> float:
     m = mean(a)
     s = 0
     for i in range(len(a)):
@@ -20,7 +21,7 @@ def standart_deviation(a):
     return (s / len(a)) ** 0.5
 
 
-def confidence_interval(times):
+def confidence_interval(times: list):
     z_95 = 1.96
     m = mean(times)
     s = standart_deviation(times)
@@ -120,7 +121,7 @@ for _ in range(20):
     )
     times.append(nn.network.trained_time["train_time"])
 
-    build_plot(nn, (0.0, 40.0), 0.1, true_data=[true_x, true_y])
+    build_plot(nn, (0.0, 40.0), 0.1, true_data=(true_x, true_y))
 
     nn.export_to_cpp("train_time_measure")
 l, r, m, d = confidence_interval(times)

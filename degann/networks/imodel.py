@@ -1,6 +1,6 @@
 import json
 from collections import defaultdict
-from typing import List, Optional, Dict, Union
+from typing import List, Optional, Dict, Union, Type
 
 import numpy as np
 import tensorflow as tf
@@ -137,7 +137,9 @@ class IModel(object):
 
         return self.network(inputs, training=False)
 
-    def predict(self, inputs: np.ndarray, callbacks: List = None) -> np.ndarray:
+    def predict(
+        self, inputs: np.ndarray, callbacks: Optional[List] = None
+    ) -> np.ndarray:
         """
         Return network answer for passed input by network predict()
 
@@ -158,13 +160,13 @@ class IModel(object):
 
     def train(
         self,
-        x_data: np.ndarray,
-        y_data: np.ndarray,
+        x_data: np.ndarray | tf.Tensor,
+        y_data: np.ndarray | tf.Tensor,
         validation_split=0.0,
         validation_data=None,
         epochs=10,
         mini_batch_size=None,
-        callbacks: List = None,
+        callbacks: Optional[List] = None,
         verbose="auto",
     ) -> keras.callbacks.History:
         """
@@ -221,13 +223,13 @@ class IModel(object):
 
     def evaluate(
         self,
-        x_data: np.ndarray,
-        y_data: np.ndarray,
+        x_data: np.ndarray | tf.Tensor,
+        y_data: np.ndarray | tf.Tensor,
         batch_size=None,
-        callbacks: List = None,
+        callbacks: Optional[List] = None,
         verbose="auto",
         **kwargs,
-    ) -> Union[float, List[float]]:
+    ) -> dict[str, float]:
         """
         Evaluate network on passed dataset and return evaluate history
 
@@ -242,14 +244,12 @@ class IModel(object):
         callbacks: list
             List of tensorflow callbacks for evaluate function
         verbose: int
-            Output accompanying evaualing
+            Output accompanying evaluating
 
         Returns
         -------
-        history: Union[float, List[float]]
-            Scalar test loss (if the model has a single output and no metrics)
-            or list of scalars (if the model has multiple outputs
-            and/or metrics).
+        history: dict[str, float]
+            Scalar validation loss
         """
         if self._is_debug:
             if callbacks is not None:
@@ -264,7 +264,8 @@ class IModel(object):
                         f"log_{self.get_name}.csv", separator=",", append=False
                     )
                 ]
-        self._evaluate_history = self.network.evaluate(
+        # In debug evaluate returns the dictionary of metric (and loss) values on validation data
+        self._evaluate_history: dict[str, float] = self.network.evaluate(  # type: ignore
             x_data,
             y_data,
             batch_size=batch_size,
@@ -279,7 +280,11 @@ class IModel(object):
         del self._evaluate_history
 
     def export_to_cpp(
-        self, path: str, array_type: str = "[]", path_to_compiler: str = None, **kwargs
+        self,
+        path: str,
+        array_type: str = "[]",
+        path_to_compiler: Optional[str] = None,
+        **kwargs,
     ) -> None:
         """
         Export neural network as feedforward function on c++
@@ -494,5 +499,7 @@ class IModel(object):
         return res
 
 
-_create_functions = defaultdict(lambda: TensorflowDenseNet)
+_create_functions: defaultdict[str, Type[tf.keras.Model]] = defaultdict(
+    lambda: TensorflowDenseNet
+)
 _create_functions["DenseNet"] = TensorflowDenseNet

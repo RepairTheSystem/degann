@@ -1,8 +1,9 @@
 from collections import defaultdict
+from typing import Type
 
-import keras.initializers
 import numpy as np
 from tensorflow import Tensor
+from tensorflow import keras
 
 from degann.networks.layers.tf_dense import TensorflowDense
 
@@ -16,7 +17,7 @@ def create(
     layer_type="Dense",
     is_debug=False,
     **kwargs
-) -> object:
+) -> keras.layers.Layer:
     """
     Create layer by parameters
 
@@ -40,8 +41,11 @@ def create(
     layer
         Created layer
     """
+
+    # mypy thinks the keras.layers.Layer constructor is being called,
+    # so it complains about unknown arguments and a large number of arguments
     layer = _create_functions[layer_type](
-        inp_size, shape, activation, weight, bias, is_debug=is_debug, **kwargs
+        inp_size, shape, activation, weight, bias, is_debug=is_debug, **kwargs  # type: ignore
     )
     return layer
 
@@ -77,7 +81,9 @@ def create_dense(
     layer = create(
         inp_size, shape, activation, weight, bias, layer_type="Dense", **kwargs
     )
-    return layer
+
+    # TensorFlowDenseLayer is child class for keras.layers.Layer, but seems like mypy can't resolve inheritance issue
+    return layer  # type: ignore
 
 
 def from_dict(config):
@@ -103,5 +109,7 @@ def from_dict(config):
     return res
 
 
-_create_functions = defaultdict(lambda: TensorflowDense)
+_create_functions: defaultdict[str, Type[keras.layers.Layer]] = defaultdict(
+    lambda: TensorflowDense
+)
 _create_functions["Dense"] = TensorflowDense

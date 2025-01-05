@@ -1,7 +1,7 @@
 import numpy as np
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt, QObject
-from PyQt6.QtWidgets import QMainWindow, QLayout
+from PyQt6.QtWidgets import QMainWindow, QLayout, QVBoxLayout
 
 from degann import networks
 from degann.networks import get_all_loss_functions
@@ -19,11 +19,11 @@ from gui.constants import (
 
 
 class SelectAndTrainLayout:
-    def __init__(self, centralwidget):
+    def __init__(self, centralwidget: QtWidgets.QWidget):
         self.centralwidget = centralwidget
         self.setup_ui()
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         self.main_area = QtWidgets.QVBoxLayout(self.centralwidget)
         self.main_area.setObjectName("SelectAndTrainLayout")
 
@@ -42,7 +42,7 @@ class SelectAndTrainLayout:
 
         self.main_area.addLayout(self.select_and_train_area)
 
-    def setup_train_area(self):
+    def setup_train_area(self) -> QtWidgets.QVBoxLayout:
         train_area = QtWidgets.QVBoxLayout()
         parameters_area = QtWidgets.QHBoxLayout()
         parameter_desc_area = self.setup_parameters_desc_area()
@@ -58,7 +58,7 @@ class SelectAndTrainLayout:
 
         return train_area
 
-    def setup_parameters_desc_area(self):
+    def setup_parameters_desc_area(self) -> QtWidgets.QVBoxLayout:
         param_desc_area = QtWidgets.QVBoxLayout()
         param_desc_area.setObjectName("param_desc_area")
 
@@ -73,7 +73,7 @@ class SelectAndTrainLayout:
             param_desc_area.addWidget(textBrowser)
         return param_desc_area
 
-    def setup_parameters_value_area(self):
+    def setup_parameters_value_area(self) -> QtWidgets.QVBoxLayout:
         param_value_area = QtWidgets.QVBoxLayout()
         param_value_area.setObjectName("param_value_area")
 
@@ -83,16 +83,14 @@ class SelectAndTrainLayout:
         loss_func_combobox.setObjectName("loss_func_combobox")
         for loss_func in get_all_loss_functions().keys():
             loss_func_combobox.addItem(loss_func)
-        loss_func_combobox.setCurrentText(
-            str(selector.base_parameters["loss_function"])
-        )
+        loss_func_combobox.setCurrentText(str(selector.BaseParameters.loss_function))
         param_value_area.addWidget(loss_func_combobox)
 
         loss_threshold_text = QtWidgets.QLineEdit(parent=self.centralwidget)
         loss_threshold_text.setSizePolicy(minimum_police_size)
         loss_threshold_text.setMinimumSize(QtCore.QSize(0, 60))
         loss_threshold_text.setObjectName("loss_threshold_text")
-        loss_threshold_text.setText(str(selector.base_parameters["loss_threshold"]))
+        loss_threshold_text.setText(str(selector.BaseParameters.loss_threshold))
         param_value_area.addWidget(loss_threshold_text)
 
         optimizer_combobox = QtWidgets.QComboBox(parent=self.centralwidget)
@@ -101,12 +99,12 @@ class SelectAndTrainLayout:
         optimizer_combobox.setObjectName("optimizer_combobox")
         for optimizer in get_all_optimizers().keys():
             optimizer_combobox.addItem(optimizer)
-        optimizer_combobox.setCurrentText(str(selector.base_parameters["optimizer"]))
+        optimizer_combobox.setCurrentText(str(selector.BaseParameters.optimizer))
         param_value_area.addWidget(optimizer_combobox)
 
         return param_value_area
 
-    def setup_tags_area(self):
+    def setup_tags_area(self) -> QVBoxLayout:
         tags_area = QtWidgets.QVBoxLayout()
         tags_area.setObjectName("tags_area")
         tags_value_area = QtWidgets.QFormLayout()
@@ -130,8 +128,8 @@ class SelectAndTrainLayout:
         eq_type_combobox.setMinimumSize(QtCore.QSize(0, 60))
         eq_type_combobox.setFont(font_12pt)
         eq_type_combobox.setObjectName("eq_type_combobox")
-        for tag in selector.expert_system_tags["type"]:
-            eq_type_combobox.addItem(tag)
+        for tag in selector.ExpertSystemTags.equation_type:
+            eq_type_combobox.addItem(tag.value)
         eq_type_combobox.setCurrentText("unknown")
         tags_value_area.setWidget(
             0, QtWidgets.QFormLayout.ItemRole.FieldRole, eq_type_combobox
@@ -153,8 +151,8 @@ class SelectAndTrainLayout:
         precision_combobox.setMinimumSize(QtCore.QSize(0, 60))
         precision_combobox.setFont(font_12pt)
         precision_combobox.setObjectName("precision_combobox")
-        for precision in selector.expert_system_tags["precision"]:
-            precision_combobox.addItem(precision)
+        for precision in selector.ExpertSystemTags.model_precision:
+            precision_combobox.addItem(precision.value)
         precision_combobox.setCurrentText("median")
         tags_value_area.setWidget(
             1, QtWidgets.QFormLayout.ItemRole.FieldRole, precision_combobox
@@ -175,8 +173,8 @@ class SelectAndTrainLayout:
         work_time_combobox.setMinimumSize(QtCore.QSize(0, 60))
         work_time_combobox.setFont(font_12pt)
         work_time_combobox.setObjectName("work_time_combobox")
-        for work_time in selector.expert_system_tags["work time"]:
-            work_time_combobox.addItem(work_time)
+        for work_time in selector.ExpertSystemTags.predict_time:
+            work_time_combobox.addItem(work_time.value)
         work_time_combobox.setCurrentText("medium")
         tags_value_area.setWidget(
             2, QtWidgets.QFormLayout.ItemRole.FieldRole, work_time_combobox
@@ -197,8 +195,8 @@ class SelectAndTrainLayout:
         data_size_combobox.setMinimumSize(QtCore.QSize(0, 60))
         data_size_combobox.setFont(font_12pt)
         data_size_combobox.setObjectName("data_size_combobox")
-        for data_size in selector.expert_system_tags["data size"]:
-            data_size_combobox.addItem(data_size)
+        for data_size in selector.ExpertSystemTags.data_size:
+            data_size_combobox.addItem(data_size.value)
         data_size_combobox.setCurrentText("auto")
         tags_value_area.setWidget(
             3, QtWidgets.QFormLayout.ItemRole.FieldRole, data_size_combobox

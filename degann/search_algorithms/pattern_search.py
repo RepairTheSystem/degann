@@ -1,5 +1,6 @@
 import random
-from typing import Union, Any, Tuple, List
+from itertools import product
+from typing import Optional, Union, Any, Tuple, List, Iterable, Sized, Collection
 
 import numpy as np
 import tensorflow as tf
@@ -23,7 +24,7 @@ def _create_random_network(
     max_layers=5,
     min_neurons=3,
     max_neurons=60,
-) -> list[Union[list[int], list, list[Union[str, Any]], list[None]]]:
+) -> tuple[list[int], list[str], list[None]]:
     """
     Create random neural network from the passed parameters.
 
@@ -39,14 +40,14 @@ def _create_random_network(
         Maximal count of neurons per layer
     Returns
     -------
-    net: network.INetwork
+    net: tuple[list[int], list[str], list[None]]
         Random neural network
     """
 
     layers = random.randint(min_layers, max_layers)
     shape = [random.randint(min_neurons, max_neurons) for _ in range(layers)]
     act = []
-    decorator_param = []
+    decorator_param: list[None] = []
     all_act_names = list(activations.get_all_activations().keys())
     for _ in shape:
         act.append(random.choice(all_act_names))
@@ -56,7 +57,7 @@ def _create_random_network(
     act.append("linear")
     decorator_param.append(None)
 
-    nets_param = [shape, act, decorator_param]
+    nets_param = (shape, act, decorator_param)
     return nets_param
 
 
@@ -83,7 +84,7 @@ def _normalize_array(x: np.ndarray) -> Tuple[np.ndarray, float]:
 def train(
     x_data: np.ndarray,
     y_data: np.ndarray,
-    val_data: tuple[np.ndarray, np.ndarray] = None,
+    val_data: Optional[tuple[np.ndarray, np.ndarray]] = None,
     **kwargs,
 ) -> tuple[imodel.IModel, dict[Union[str, Any], Any]]:
     """
@@ -107,39 +108,12 @@ def train(
         History of training for this network
     """
     # default config
-    args = {
-        "debug": False,
-        "eps": 1e-2,
-        "epochs": 100,
-        "normalize": False,
-        "name_salt": "",
-        "loss_function": "MeanSquaredError",
-        "optimizer": "SGD",
-        "metrics": [
-            "MeanSquaredError",
-            "MeanAbsoluteError",
-            "CosineSimilarity",
-        ],
-        "validation_metrics": [
-            "MeanSquaredError",
-            "MeanAbsoluteError",
-            "CosineSimilarity",
-        ],
-        "use_rand_net": True,
-        "net_type": "DenseNet",
-        "nets_param": [
-            [
-                shape,  # shape
-                ["sigmoid"] * len(shape) + ["linear"],  # activation functions
-                [None] * (len(shape) + 1),  # decorator parameters for activation
-            ]
-            for shape in _default_shapes
-        ],
-    }
+    args = TrainConfig()
     for kw in kwargs:
-        args[kw] = kwargs[kw]
+        if kw in args.keys():
+            args[kw] = kwargs[kw]
 
-    if args["debug"]:
+    if args.debug:
         print("Start train func")
 
     # determining the number of inputs and outputs of the neural network
@@ -154,21 +128,21 @@ def train(
         output_len = 1
 
     # prepare data (normalize)
-    norm_coff = 1
-    if args["normalize"]:
+    norm_coff: float = 1
+    if args.normalize:
         x_data, norm_coff = _normalize_array(x_data)
         # y_data, norm_coff = _normalize_array(y_data)
-        if args["debug"]:
+        if args.debug:
             print(f"Normalization coefficient is {norm_coff}")
 
-    x_data = tf.convert_to_tensor(x_data, dtype=tf.float32)
-    y_data = tf.convert_to_tensor(y_data, dtype=tf.float32)
+    x_data_tensor = tf.convert_to_tensor(x_data, dtype=tf.float32)
+    y_data_tensor = tf.convert_to_tensor(y_data, dtype=tf.float32)
 
     # prepare neural networks
-    if args["debug"]:
+    if args.debug:
         print("Prepare neural networks and data")
     nets = []
-    for parameters in args["nets_param"]:
+    for parameters in args.nets_param:
         shape: list[int] = parameters[0]
         act = parameters[1]
         decorator_param = parameters[2]
@@ -179,12 +153,12 @@ def train(
             output_size=output_len,
             activation_func=act,
             decorator_params=decorator_param,
-            net_type=args["net_type"],
-            name=f"net{args['name_salt']}_{str_shape}",
-            is_debug=args["debug"],
+            net_type=args.net_type,
+            name=f"net{args.name_salt}_{str_shape}",
+            is_debug=args.debug,
         )
         nets.append(curr_net)
-    if args["use_rand_net"]:
+    if args.use_rand_net:
         rand_net_params = _create_random_network(input_len, output_len)
         str_shape = "_".join(map(str, rand_net_params[0]))
         rand_net = imodel.IModel(
@@ -193,35 +167,35 @@ def train(
             output_size=output_len,
             activation_func=rand_net_params[1],
             decorator_params=rand_net_params[2],
-            net_type=args["net_type"],
-            name=f"net{args['name_salt']}_{str_shape}",
+            net_type=args.net_type,
+            name=f"net{args.name_salt}_{str_shape}",
         )
         nets.append(rand_net)
 
     # compile
     for nn in nets:
         nn.compile(
-            rate=args["eps"],
-            optimizer=args["optimizer"],
-            loss_func=args["loss_function"],
-            metrics=args["metrics"],
+            rate=args.eps,
+            optimizer=args.optimizer,
+            loss_func=args.loss_function,
+            metrics=args.metrics,
             # run_eagerly=True,
         )
 
-    if args["debug"]:
+    if args.debug:
         print("Success prepared")
 
     # train
     history = []
     for i, nn in enumerate(nets):
         verb = 0
-        if args["debug"]:
+        if args.debug:
             print(nn)
             verb = 1
         temp_his = nn.train(
-            x_data,
-            y_data,
-            epochs=args["epochs"],
+            x_data_tensor,
+            y_data_tensor,
+            epochs=args.epochs,
             validation_data=val_data,
             callbacks=[MemoryCleaner()],
             verbose=verb,
@@ -239,18 +213,18 @@ def train(
             min_err = history[i]["loss"]
             result_net = nets[i]
             result_history = history[i]
-    if args["debug"]:
-        print(f"Minimal loss error is {min_err} {args['name_salt']}")
+    if args.debug:
+        print(f"Minimal loss error is {min_err} {args.name_salt}")
     return result_net, result_history
 
 
 def pattern_search(
     x_data: np.ndarray,
     y_data: np.ndarray,
-    x_val: np.ndarray = None,
-    y_val: np.ndarray = None,
+    x_val: Optional[np.ndarray] = None,
+    y_val: Optional[np.ndarray] = None,
     **kwargs,
-) -> list[list[dict, float, float, imodel.IModel]]:
+) -> list[tuple[dict, float, float, imodel.IModel]]:
     """
     Choose and return neural network which present the minimal average absolute deviation.
     x_data and y_data is numpy 2d arrays (in case we don't have multiple-layer input/output).
@@ -272,17 +246,7 @@ def pattern_search(
     """
 
     # default config
-    args = {
-        "loss_functions": [key for key in losses.get_all_loss_functions()],
-        "optimizers": [key for key in get_all_optimizers()],
-        "metrics": [key for key in get_all_metric_functions()],
-        "validation_metrics": [key for key in get_all_metric_functions()],
-        "net_shapes": _default_shapes,
-        "activations": [key for key in activations.get_all_activations()],
-        "rates": [1e-2, 5e-3, 1e-3],
-        "epochs": [50, 200],
-        "normalize": [False],
-    }
+    args = PatternSearchConfig()
 
     for arg in args:
         if kwargs.get(arg) is not None:
@@ -295,9 +259,9 @@ def pattern_search(
 
     # Networks parameters --- shape and activation functions
     nets_param = []
-    for shape in args["net_shapes"]:
+    for shape in args.net_shapes:
         if len(shape) != 0:
-            for activation in args["activations"]:
+            for activation in args.activations:
                 nets_param.append(
                     [
                         shape,
@@ -314,26 +278,30 @@ def pattern_search(
                 ]
             )
 
-    metaparams = []
-    for loss_func in args["loss_functions"]:
-        for normalize in args["normalize"]:
-            for optimizer in args["optimizers"]:
-                for epochs in args["epochs"]:
-                    for rate in args["rates"]:
-                        metaparams.append(dict())
-                        metaparams[-1]["loss_function"] = loss_func
-                        metaparams[-1]["normalize"] = normalize
-                        metaparams[-1]["optimizer"] = optimizer
-                        metaparams[-1]["epochs"] = epochs
-                        metaparams[-1]["eps"] = rate
-                        metaparams[-1]["metrics"] = args["metrics"]
-                        metaparams[-1]["validation_metrics"] = args[
-                            "validation_metrics"
-                        ]
-                        metaparams[-1]["nets_param"] = nets_param
-                        metaparams[-1].update(kwargs)
+    # too long for mypy checking
+    # metaparams = list(map(lambda x: dict(x) | kwargs,product(*list(map(lambda x: [x] if isinstance(x[0], str) else x,(list(map(lambda kv: ([(kv[0], v) for v in kv[1]]if isinstance(kv[1], (Iterable, Sized))and len(kv[1]) > 0else (kv[0], kv[1])), args.__dict__.items()))))))))
 
-    best_nets: List[List[dict, float, float, imodel.IModel]] = []
+    list_of_decomposed_args = list(
+        map(
+            lambda kv: (
+                [(kv[0], v) for v in kv[1]]
+                if isinstance(kv[1], Collection) and len(kv[1]) > 0
+                else (kv[0], kv[1])
+            ),
+            args.__dict__.items(),
+        )
+    )
+    all_args_combinations = product(
+        *list(
+            map(
+                lambda x: [x] if isinstance(x[0], str) else x,
+                list_of_decomposed_args,
+            )
+        )
+    )
+    metaparams = list(map(lambda x: dict(x) | kwargs, all_args_combinations))
+
+    best_nets: List[tuple[dict, float, float, imodel.IModel]] = []
     if kwargs.get("debug"):
         print(f"Grid search size {len(metaparams)}")
         print("Amount of networks for each set of parameters", len(nets_param))
@@ -346,7 +314,90 @@ def pattern_search(
             val_loss = history["val_loss"][-1]
         else:
             val_loss = 10**9
-        best_nets.append([params, loss, val_loss, trained])
+        best_nets.append((params, loss, val_loss, trained))
 
     best_nets.sort(key=lambda x: [x[1], x[2]])
     return best_nets
+
+
+class PatternSearchConfig:
+    def __init__(self: "PatternSearchConfig") -> None:
+        self.loss_functions: list[str] = [
+            key for key in losses.get_all_loss_functions()
+        ]
+        self.optimizers: list[str] = [key for key in get_all_optimizers()]
+        self.metrics: list[list[str]] = [[key for key in get_all_metric_functions()]]
+        self.validation_metrics: list[list[str]] = [
+            [key for key in get_all_metric_functions()]
+        ]
+        self.net_shapes: list[list[int]] = _default_shapes
+        self.activations: list[str] = [key for key in activations.get_all_activations()]
+        self.rates: list[float] = [1e-2, 5e-3, 1e-3]
+        self.epochs: list[int] = [50, 200]
+
+    def __setitem__(self: "PatternSearchConfig", __key: str, __value: Any):
+        if __key in self.__dict__.keys():
+            self.__dict__[__key] = __value
+        else:
+            raise ValueError(f"In PatternSearchConfig there is no {__key} key")
+
+    def __getitem__(self: "PatternSearchConfig", __key: str) -> Any:
+        return self.__dict__[__key]
+
+    def __len__(self: "PatternSearchConfig") -> int:
+        return len(self.__dict__)
+
+    def __iter__(self):
+        return self.__dict__.__iter__()
+
+    def keys(self):
+        return self.__dict__.keys()
+
+
+class TrainConfig:
+    def __init__(self: "TrainConfig") -> None:
+        self.debug: bool = False
+        self.eps: float = 1e-2
+        self.epochs: int = 100
+        self.normalize: bool = False
+        self.name_salt: str = ""
+        self.loss_function: str = "MeanSquaredError"
+        self.optimizer: str = "SGD"
+        self.metrics: list[str] = [
+            "MeanSquaredError",
+            "MeanAbsoluteError",
+            "CosineSimilarity",
+        ]
+        self.validation_metrics: list[str] = [
+            "MeanSquaredError",
+            "MeanAbsoluteError",
+            "CosineSimilarity",
+        ]
+        self.use_rand_net: bool = True
+        self.net_type: str = "DenseNet"
+        self.nets_param: list[tuple[list[int], list[str], list[None]]] = [
+            (
+                shape,  # shape
+                ["sigmoid"] * len(shape) + ["linear"],  # activation functions
+                [None] * (len(shape) + 1),  # decorator parameters for activation
+            )
+            for shape in _default_shapes
+        ]
+
+    def __setitem__(self: "TrainConfig", __key: str, __value: Any) -> None:
+        if __key in self.__dict__.keys():
+            self.__dict__[__key] = __value
+        else:
+            raise ValueError(f"In TrainConfig there is no {__key} key")
+
+    def __getitem__(self: "TrainConfig", __key: str) -> Any:
+        return self.__dict__[__key]
+
+    def __len__(self: "TrainConfig") -> int:
+        return len(self.__dict__)
+
+    def __iter__(self):
+        return self.__dict__.__iter__()
+
+    def keys(self):
+        return self.__dict__.keys()

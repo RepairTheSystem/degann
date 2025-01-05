@@ -4,10 +4,14 @@ from random import randint
 
 import numpy as np
 
-from degann import grid_search
+from degann.search_algorithms import grid_search
 from degann.search_algorithms.nn_code import (
     alphabet_activations_cut,
     alph_n_div3,
+)
+from degann.search_algorithms.search_algorithms_parameters import (
+    BaseSearchParameters,
+    GridSearchParameters,
 )
 from experiments.functions import LH_ODE_1_solution
 
@@ -47,20 +51,27 @@ loss = "MaxAbsoluteDeviation"  # loss function
 # Start full search over specified parameters
 #
 
+base_params = BaseSearchParameters()
+base_params.input_size = 1  # size of input data (x)
+base_params.output_size = 1  # size of output data (y)
+base_params.data = (nn_data_x, nn_data_y)  # dataset
+base_params.min_epoch = num_epoch  # starting number of epochs
+base_params.max_epoch = num_epoch  # final number of epochs
+base_params.nn_min_length = 1  # starting number of hidden layers of neural networks
+base_params.nn_max_length = 4  # final number of hidden layers of neural networks
+base_params.nn_alphabet = (
+    div3_variants  # list of possible sizes of hidden layers with activations for them
+)
+base_params.logging = True  # logging search process to file
+base_params.file_name = "full_search_example"  # file for logging
+
+grid_search_params = GridSearchParameters(base_params)
+grid_search_params.optimizers = [opt]  # list of optimizers
+grid_search_params.losses = [loss]  # list of loss functions
+grid_search_params.epoch_step = 10  # step between `min_epoch` and `max_epoch`
+
 grid_search(
-    input_size=1,  # size of input data (x)
-    output_size=1,  # size of output data (y)
-    data=(nn_data_x, nn_data_y),  # dataset
-    opt=[opt],  # list of optimizers
-    loss=[loss],  # list of loss functions
-    min_epoch=num_epoch,  # starting number of epochs
-    max_epoch=num_epoch,  # final number of epochs
-    epoch_step=10,  # step between `min_epoch` and `max_epoch`
-    nn_min_length=1,  # starting number of hidden layers of neural networks
-    nn_max_length=4,  # final number of hidden layers of neural networks
-    nn_alphabet=div3_variants,  # list of possible sizes of hidden layers with activations for them
-    logging=True,  # logging search process to file
-    file_name=file_name,  # file for logging
+    grid_search_params,
     verbose=True,  # print additional information to console during the searching
 )
 print("END 1, 4", datetime.today().strftime("%Y-%m-%d %H:%M:%S"))

@@ -1,7 +1,10 @@
-from typing import Union, Tuple, List
+from numbers import Number
+from typing import Union, Tuple, List, Callable
 
 
-def array1d_creator(elem_type: str):
+def array1d_creator(
+    elem_type: str,
+) -> Callable[[str, int, Union[None, list[int | float], int | float]], str]:
     """
     Return function for creating c one-dimensional arrays (e.g. float[]) with specified type
 
@@ -16,7 +19,11 @@ def array1d_creator(elem_type: str):
         function for create arrays
     """
 
-    def array1d_spec_type_creator(name: str, size: int, initial_value=None) -> str:
+    def array1d_spec_type_creator(
+        name: str,
+        size: int,
+        initial_value: Union[None, list[int | float], int | float] = None,
+    ) -> str:
         """
         Create string representation of c one-dimensional array
 
@@ -26,7 +33,7 @@ def array1d_creator(elem_type: str):
             array name
         size: int
             array size
-        initial_value: list
+        initial_value: Union[None, list[int | float], int | float]
             initial value for array. Can be None, list of values (len should be equal to size) or single value
 
         Returns
@@ -39,7 +46,7 @@ def array1d_creator(elem_type: str):
                 if len(initial_value) == size:
                     res += " = {" + ", ".join(map(str, initial_value)) + "}"
                 else:
-                    raise Exception("Incompatibility size of arrays")
+                    raise ValueError("Incompatibility size of arrays")
             else:
                 res += " = {" + ", ".join([str(initial_value)] * size) + "}"
         res += ";\n"
@@ -48,7 +55,7 @@ def array1d_creator(elem_type: str):
     return array1d_spec_type_creator
 
 
-def array1d_heap_creator(elem_type: str):
+def array1d_heap_creator(elem_type: str) -> Callable[[str, int], str]:
     """
     Return function for creating c one-dimensional arrays on heap with specified type.
     E.g. (float*)malloc(size * sizeof(float))
@@ -60,7 +67,7 @@ def array1d_heap_creator(elem_type: str):
 
     Returns
     -------
-    creator: Callable
+    creator: Callable[[str, int], str]
         function for create arrays
     """
 
@@ -88,7 +95,11 @@ def array1d_heap_creator(elem_type: str):
     return array1d_heap_spec_type_creator
 
 
-def array2d_creator(elem_type: str):
+def array2d_creator(
+    elem_type: str,
+) -> Callable[
+    [str, int, int, Union[None, list[list[int | float]], int | float], bool], str
+]:
     """
     Return function for creating c two-dimensional arrays (e.g. float[][]) with specified type
 
@@ -117,8 +128,10 @@ def array2d_creator(elem_type: str):
             first dimension size
         size_y: int
             second dimension  size
-        initial_value: list
+        initial_value: list[list]
             initial value for array. Can be None, list[list] of values (len should be equal to size) or single value
+        reverse: bool
+            rotate the matrix at a right angle counterclockwise
 
         Returns
         -------
@@ -139,7 +152,7 @@ def array2d_creator(elem_type: str):
                     temp += "{" + ", ".join(map(str, initial_value[-1])) + "} }"
                     res += " = " + temp
                 else:
-                    raise Exception("Incompatibility size of arrays")
+                    raise ValueError("Incompatibility size of arrays")
             else:
                 temp = "{ "
                 for i in range(size_x - 1):

@@ -1,5 +1,6 @@
 import os
-from typing import List, Optional, Dict, Callable
+from numbers import Number
+from typing import List, Optional, Dict, Callable, Union
 
 import tensorflow as tf
 from tensorflow import keras
@@ -14,17 +15,24 @@ class TensorflowDenseNet(tf.keras.Model):
     def __init__(
         self,
         input_size: int = 2,
-        block_size: list = None,
+        block_size: Optional[list] = None,
         output_size: int = 10,
-        activation_func: str = "linear",
+        activation_func: str | list[str] = "linear",
         weight=keras.initializers.RandomUniform(minval=-1, maxval=1),
         biases=keras.initializers.RandomUniform(minval=-1, maxval=1),
         is_debug: bool = False,
         **kwargs,
     ):
+        if block_size is None:
+            block_size = []
+
         decorator_params: List[Optional[Dict]] = [None]
         if "decorator_params" in kwargs.keys():
-            decorator_params = kwargs.get("decorator_params")
+            value = kwargs.get("decorator_params")
+            if isinstance(value, list) and all(
+                isinstance(item, dict) for item in value
+            ):
+                decorator_params = value
             kwargs.pop("decorator_params")
         else:
             decorator_params = [None]
@@ -48,13 +56,16 @@ class TensorflowDenseNet(tf.keras.Model):
         self.blocks: List[TensorflowDense] = []
 
         if not isinstance(activation_func, list):
-            activation_func = [activation_func] * (len(block_size) + 1)
+            activation_func_list = [activation_func] * (len(block_size) + 1)
+        else:
+            activation_func_list = activation_func.copy()
+
         if len(block_size) != 0:
             self.blocks.append(
                 layer_creator.create_dense(
                     input_size,
                     block_size[0],
-                    activation=activation_func[0],
+                    activation=activation_func_list[0],
                     weight=weight,
                     bias=biases,
                     is_debug=is_debug,
@@ -67,7 +78,7 @@ class TensorflowDenseNet(tf.keras.Model):
                     layer_creator.create_dense(
                         block_size[i - 1],
                         block_size[i],
-                        activation=activation_func[i],
+                        activation=activation_func_list[i],
                         weight=weight,
                         bias=biases,
                         is_debug=is_debug,
@@ -82,7 +93,7 @@ class TensorflowDenseNet(tf.keras.Model):
         self.out_layer = layer_creator.create_dense(
             last_block_size,
             output_size,
-            activation=activation_func[-1],
+            activation=activation_func_list[-1],
             weight=weight,
             bias=biases,
             is_debug=is_debug,
@@ -90,7 +101,7 @@ class TensorflowDenseNet(tf.keras.Model):
             decorator_params=decorator_params[-1],
         )
 
-        self.activation_funcs = activation_func
+        self.activation_funcs = activation_func_list
         self.weight_initializer = weight
         self.bias_initializer = biases
         self.input_size = input_size
@@ -259,16 +270,14 @@ class TensorflowDenseNet(tf.keras.Model):
 
         return res
 
-    def from_dict(self, config, **kwargs):
+    def from_dict(self, config: dict) -> None:
         """
         Restore neural network from dictionary of params
+
         Parameters
         ----------
-        config
-        kwargs
-
-        Returns
-        -------
+        config: dict
+            Model parameters
 
         """
         input_size = config["input_size"]
@@ -283,14 +292,18 @@ class TensorflowDenseNet(tf.keras.Model):
         for layer_config in config["layer"]:
             layers.append(layer_creator.from_dict(layer_config))
 
-        self.blocks: List[TensorflowDense] = []
+        self.blocks.clear()
         for layer_num in range(len(layers)):
             self.blocks.append(layers[layer_num])
 
         self.out_layer = layer_creator.from_dict(config["out_layer"])
 
     def export_to_cpp(
-        self, path: str, array_type: str = "[]", path_to_compiler: str = None, **kwargs
+        self,
+        path: str,
+        array_type: str = "[]",
+        path_to_compiler: Optional[str] = None,
+        **kwargs,
     ) -> None:
         """
         Export neural network as feedforward function on c++
@@ -333,15 +346,9 @@ class TensorflowDenseNet(tf.keras.Model):
         transform_output_array = ""
         return_stat = "return answer;\n"
 
-        creator_1d: Callable[
-            [str, int, Optional[list]], str
-        ] = cpp_utils.array1d_creator("float")
-        creator_heap_1d: Callable[[str, int], str] = cpp_utils.array1d_heap_creator(
-            "float"
-        )
-        creator_2d: Callable[
-            [str, int, int, Optional[list]], str
-        ] = cpp_utils.array2d_creator("float")
+        creator_1d = cpp_utils.array1d_creator("float")
+        creator_heap_1d = cpp_utils.array1d_heap_creator("float")
+        creator_2d = cpp_utils.array2d_creator("float")
         if array_type == "[]":
             signature = f"float* feedforward(float x_array[])\n"
 
@@ -357,12 +364,10 @@ class TensorflowDenseNet(tf.keras.Model):
             return_stat = "return answer_vector;\n"
 
         create_layers = ""
-        create_layers += creator_1d(f"layer_0", input_size, initial_value=0)
+        create_layers += creator_1d(f"layer_0", input_size, 0)
         for i, size in enumerate(blocks):
-            create_layers += creator_1d(f"layer_{i + 1}", size, initial_value=0)
-        create_layers += creator_1d(
-            f"layer_{len(blocks) + 1}", output_size, initial_value=0
-        )
+            create_layers += creator_1d(f"layer_{i + 1}", size, 0)
+        create_layers += creator_1d(f"layer_{len(blocks) + 1}", output_size, 0)
         create_layers += cpp_utils.copy_1darray_to_array(
             input_size, "x_array", "layer_0"
         )
@@ -374,7 +379,7 @@ class TensorflowDenseNet(tf.keras.Model):
                 layer_dict[LAYER_DICT_NAMES["inp_size"]],
                 layer_dict[LAYER_DICT_NAMES["shape"]],
                 layer_dict[LAYER_DICT_NAMES["weights"]],
-                reverse=reverse,
+                reverse,
             )
 
         fill_weights = ""

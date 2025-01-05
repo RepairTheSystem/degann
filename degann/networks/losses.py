@@ -35,6 +35,9 @@ class RelativeAbsoluteError(tf.keras.losses.Loss, ABC):
         loss = squared_error_num / squared_error_den
         return loss
 
+    def call(self, y_true, y_pred):
+        return self(y_true, y_pred)
+
 
 class MaxAbsoluteDeviation(tf.keras.losses.Loss, ABC):
     """
@@ -52,6 +55,9 @@ class MaxAbsoluteDeviation(tf.keras.losses.Loss, ABC):
     def __call__(self, y_true, y_pred, sample_weight=None):
         loss = tf.math.reduce_max(tf.math.abs(y_true - y_pred))
         return loss
+
+    def call(self, y_true, y_pred):
+        return self(y_true, y_pred)
 
 
 class MaxAbsolutePercentageError(tf.keras.losses.Loss, ABC):
@@ -71,6 +77,9 @@ class MaxAbsolutePercentageError(tf.keras.losses.Loss, ABC):
         loss = tf.math.reduce_max(tf.math.abs((y_true - y_pred) / y_true)) * 100.0
         return loss
 
+    def call(self, y_true, y_pred):
+        return self(y_true, y_pred)
+
 
 class RMSE(tf.keras.losses.Loss, ABC):
     """
@@ -85,6 +94,9 @@ class RMSE(tf.keras.losses.Loss, ABC):
         loss = tf.math.sqrt(tf.math.reduce_mean((y_pred - y_true) ** 2))
         return loss
 
+    def call(self, y_true, y_pred):
+        return self(y_true, y_pred)
+
 
 # Reduction should be set to None?
 _losses: dict = {
@@ -94,7 +106,9 @@ _losses: dict = {
     "MeanAbsolutePercentageError": keras.losses.MeanAbsolutePercentageError(),
     "MaxAbsolutePercentageError": MaxAbsolutePercentageError(),
     "MeanSquaredError": keras.losses.MeanSquaredError(),
+    "MSE": keras.losses.MeanSquaredError(),
     "RootMeanSquaredError": RMSE(),
+    "RMSE": RMSE(),
     "MeanSquaredLogarithmicError": keras.losses.MeanSquaredLogarithmicError(),
     "RelativeAbsoluteError": RelativeAbsoluteError(),
     "MaxAbsoluteDeviation": MaxAbsoluteDeviation(),

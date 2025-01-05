@@ -6,4 +6,6 @@ numpy~=2.0.2
 pre-commit~=4.0.1
 pytest~=8.3.4
 scipy~=1.15.0rc2
+scipy-stubs~=1.15.0.0
 tensorflow~=2.18.0
+types-tensorflow~=2.18.0

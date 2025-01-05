@@ -50,20 +50,24 @@ class CodeParameter(MetaParameter):
             distance between topologies
         """
         if isinstance(other, str):
-            other = CodeParameter(other)
+            other = CodeParameter(other, self.block_size)
         val_a = 0
-        act_a = []
+        act_a: list[str] = []
         for block in self.blocks:
             dec = decode(block, block_size=self.block_size, offset=8)
             val_a += sum(dec[0])
-            act_a.append(*dec[1])
+            act_a.append(
+                dec[1][0]
+            )  # decode only one block per time, so activations is list with len = 1
 
         val_b = 0
-        act_b = []
+        act_b: list[str] = []
         for block in other.blocks:
             dec = decode(block, block_size=self.block_size, offset=8)
             val_b += sum(dec[0])
-            act_b.append(*dec[1])
+            act_b.append(
+                dec[1][0]
+            )  # decode only one block per time, so activations is list with len = 1
 
         diff = 0
         for i in range(min(len(act_a), len(act_b))):
@@ -192,7 +196,7 @@ def generate_neighbor(
     alphabet: list[str],
     block_size: int,
     parameters: tuple[str, int],
-    distance: int = 150,
+    distance: float = 150,
     min_epoch: int = 100,
     max_epoch: int = 700,
     min_length: int = 1,
