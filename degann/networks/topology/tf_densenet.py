@@ -23,7 +23,6 @@ class TensorflowDenseNet(tf.keras.Model):
         is_debug: bool = False,
         **kwargs,
     ):
-        super(TensorflowDenseNet, self).__init__(**kwargs)
         if block_size is None:
             block_size = []
 
@@ -37,6 +36,7 @@ class TensorflowDenseNet(tf.keras.Model):
             kwargs.pop("decorator_params")
         else:
             decorator_params = [None]
+        super(TensorflowDenseNet, self).__init__(**kwargs)
 
         if (
             isinstance(decorator_params, list)
