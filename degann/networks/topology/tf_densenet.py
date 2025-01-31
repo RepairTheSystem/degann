@@ -133,8 +133,16 @@ class TensorflowDenseNet(tf.keras.Model):
         run_eagerly: bool
         """
         loss = losses.get_loss(loss_func) if isinstance(loss_func, str) else loss_func
-        opt = optimizers.get_optimizer(optimizer)(learning_rate=rate) if isinstance(optimizer, str) else optimizer
-        m = [metrics.get_metric(metric) for metric in metric_funcs] if metric_funcs is not None else []
+        opt = (
+            optimizers.get_optimizer(optimizer)(learning_rate=rate)
+            if isinstance(optimizer, str)
+            else optimizer
+        )
+        m = (
+            [metrics.get_metric(metric) for metric in metric_funcs]
+            if metric_funcs is not None
+            else []
+        )
         self.compile(
             optimizer=opt,
             loss=loss,
