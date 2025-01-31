@@ -80,9 +80,9 @@ class IModel(object):
 
     def compile(
         self,
-        rate=1e-2,
-        optimizer="SGD",
-        loss_func="MeanSquaredError",
+        rate: float = 1e-2,
+        optimizer: str | tf.keras.optimizers.Optimizer = "SGD",
+        loss_func: str | tf.keras.losses.Loss = "MeanSquaredError",
         metrics=None,
         run_eagerly=False,
     ) -> None:

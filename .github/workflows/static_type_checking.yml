@@ -1,4 +1,4 @@
-name: Check types with mypy
+name: Mypy
 
 # Controls when the workflow will run
 on:

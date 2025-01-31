@@ -14,15 +14,16 @@ from degann.networks.layers.tf_dense import TensorflowDense
 class TensorflowDenseNet(tf.keras.Model):
     def __init__(
         self,
-        input_size: int = 2,
+        input_size: int = 1,
         block_size: Optional[list] = None,
-        output_size: int = 10,
+        output_size: int = 1,
         activation_func: str | list[str] = "linear",
         weight=keras.initializers.RandomUniform(minval=-1, maxval=1),
         biases=keras.initializers.RandomUniform(minval=-1, maxval=1),
         is_debug: bool = False,
         **kwargs,
     ):
+        super(TensorflowDenseNet, self).__init__(**kwargs)
         if block_size is None:
             block_size = []
 
@@ -52,7 +53,6 @@ class TensorflowDenseNet(tf.keras.Model):
         ):
             decorator_params = decorator_params * (len(block_size) + 1)
 
-        super(TensorflowDenseNet, self).__init__(**kwargs)
         self.blocks: List[TensorflowDense] = []
 
         if not isinstance(activation_func, list):
@@ -111,12 +111,12 @@ class TensorflowDenseNet(tf.keras.Model):
 
     def custom_compile(
         self,
-        rate=1e-2,
-        optimizer="SGD",
-        loss_func="MeanSquaredError",
+        rate: float = 1e-2,
+        optimizer: str | tf.keras.optimizers.Optimizer = "SGD",
+        loss_func: str | tf.keras.losses.Loss = "MeanSquaredError",
         metric_funcs=None,
         run_eagerly=False,
-    ):
+    ) -> None:
         """
         Configures the model for training
 
@@ -131,14 +131,10 @@ class TensorflowDenseNet(tf.keras.Model):
         metric_funcs: list[str]
             list with metric function names
         run_eagerly: bool
-
-        Returns
-        -------
-
         """
-        opt = optimizers.get_optimizer(optimizer)(learning_rate=rate)
-        loss = losses.get_loss(loss_func)
-        m = [metrics.get_metric(metric) for metric in metric_funcs]
+        loss = losses.get_loss(loss_func) if isinstance(loss_func, str) else loss_func
+        opt = optimizers.get_optimizer(optimizer)(learning_rate=rate) if isinstance(optimizer, str) else optimizer
+        m = [metrics.get_metric(metric) for metric in metric_funcs] if metric_funcs is not None else []
         self.compile(
             optimizer=opt,
             loss=loss,
@@ -179,7 +175,7 @@ class TensorflowDenseNet(tf.keras.Model):
         # on what you pass to `fit()`.
         x, y = data
         with tf.GradientTape() as tape:
-            y_pred = self(x, training=True)  # Forward pass
+            y_pred: tf.Tensor = self(x, training=True)  # Forward pass
             # Compute the loss value
             # (the loss function is configured in `compile()`)
             loss = self.compute_loss(y=y, y_pred=y_pred)
