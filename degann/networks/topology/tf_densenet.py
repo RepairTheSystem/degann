@@ -138,7 +138,7 @@ class TensorflowDenseNet(tf.keras.Model):
         """
         loss = losses.get_loss(loss_func) if isinstance(loss_func, str) else loss_func
         opt = (
-            optimizers.get_optimizer(optimizer)(learning_rate=rate)
+            optimizers.get_optimizer(optimizer)(learning_rate=rate) # type: ignore
             if isinstance(optimizer, str)
             else optimizer
         )
@@ -521,14 +521,14 @@ class PtDenseNet(nn.Module):
                 if isinstance(activation_funcs[i], type):
                     layers.append(activation_funcs[i]())
                 else:
-                    layers.append(ModuleLambda(activation_funcs[i]))
+                    layers.append(ModuleLambda(activation_funcs[i])) # type: ignore
             in_features = out_features
         layers.append(nn.Linear(in_features, output_size))
         if activation_funcs[-1] is not None:
             if isinstance(activation_funcs[-1], type):
                 layers.append(activation_funcs[-1]())
             else:
-                layers.append(ModuleLambda(activation_funcs[-1]))
+                layers.append(ModuleLambda(activation_funcs[-1])) # type: ignore
 
         self.model = nn.Sequential(*layers)
 
