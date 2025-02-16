@@ -5,11 +5,15 @@ from typing import List, Optional, Dict, Callable, Union
 import tensorflow as tf
 from tensorflow import keras
 
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
 from degann.networks.config_format import LAYER_DICT_NAMES
 from degann.networks import layer_creator, losses, metrics, cpp_utils
 from degann.networks import optimizers
 from degann.networks.layers.tf_dense import TensorflowDense
-
+from degann.networks.activations import activations
 
 class TensorflowDenseNet(tf.keras.Model):
     def __init__(
