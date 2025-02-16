@@ -1,5 +1,6 @@
 # DEGANN
 
+[![Mypy](https://github.com/Krekep/degann/actions/workflows/static_type_checking.yml/badge.svg)](https://github.com/Krekep/degann/actions/workflows/static_type_checking.yml)
 [![Check tests](https://github.com/Krekep/degann/actions/workflows/tests.yml/badge.svg)](https://github.com/Krekep/degann/actions/workflows/tests.yml)
 [![License](https://img.shields.io/badge/license-MIT-orange)](https://github.com/Krekep/degann/blob/main/LICENSE)
 [![Package](https://img.shields.io/badge/pypi%20package-1.1-%233776ab)](https://pypi.org/project/degann/)

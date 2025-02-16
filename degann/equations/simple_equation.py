@@ -51,6 +51,8 @@ def _build_table(
         )  # get network answer for X vector
         res = temp.numpy().tolist()  # transform tf.Tensor to python list
         return res
+    else:
+        raise RuntimeError("This if/else branch shouldn't be reached")
 
 
 def build_table(
@@ -153,11 +155,11 @@ def equation_solve(
         if len(axes) == 1:
             plt.rc("font", size=24)
             plt.figure()
-            t = res[:, :1]
+            temp_t = res[:, :1]
             y = res[:, 1:].T
 
             for i, y_i in enumerate(y):
-                plt.plot(t, y_i, "-", label=f"{i}")
+                plt.plot(temp_t, y_i, "-", label=f"{i}")
             plt.legend()
             plt.show()
     return res

@@ -16,12 +16,12 @@ __all__ = [
 
 from scipy.integrate import solve_ivp
 
-from degann import SystemODE
+from degann.equations import SystemODE
 
 
 def LF_ODE_1_solution(x):
     """solution function for y' + 3y = 0, y(0) = 1"""
-    return np.power(np.e, 3 * x)
+    return np.power(np.e, -3 * x)
 
 
 def LF_ODE_2_solution(x):

@@ -21,14 +21,14 @@ _load_dataset_text = (
 
 
 class LoadDatasetLayout:
-    def __init__(self, centralwidget):
+    def __init__(self, centralwidget: QtWidgets.QWidget):
         self.centralwidget = centralwidget
         self.setup_ui()
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         self.dataset_area = self.setup_dataset_area()
 
-    def setup_dataset_area(self):
+    def setup_dataset_area(self) -> QtWidgets.QVBoxLayout:
         dataset_area = QtWidgets.QVBoxLayout(self.centralwidget)
         dataset_area.setSizeConstraint(QtWidgets.QLayout.SizeConstraint.SetMinimumSize)
         dataset_area.setObjectName("dataset_area")

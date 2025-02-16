@@ -1,6 +1,6 @@
 from degann.expert.selector import (
-    base_parameters,
+    BaseParameters,
     suggest_parameters,
-    expert_system_tags,
 )
+from degann.expert.tags import ExpertSystemTags
 from degann.expert.pipeline import execute_pipeline

@@ -2,9 +2,10 @@
 Provide some helpful functions for DE
 """
 
-from typing import Tuple, List
+from typing import Optional, Tuple, List
 
 import numpy as np
+import numpy.typing as npt
 from matplotlib import pyplot as plt
 
 from degann.networks import imodel
@@ -55,8 +56,12 @@ def build_plot(
     interval: Tuple[float, float],
     step: float,
     title="",
-    labels: list[str] = None,
-    true_data: tuple[list, list] = None,
+    labels: Optional[list[str]] = None,
+    true_data: Optional[
+        tuple[
+            list[float] | npt.NDArray[np.float64], list[float] | npt.NDArray[np.float64]
+        ]
+    ] = None,
     is_debug=False,
 ) -> None:
     """
@@ -98,12 +103,12 @@ def build_plot(
 
     for num_nn, nn in enumerate(network):
         output_size = nn.get_output_size
-        y = []
+        y: list[list[np.ndarray]] = []
         for i in range(output_size):
             y.append([])
 
-        for i in x:
-            temp = nn.feedforward(np.array([[i]]))
+        for i, x_i in enumerate(x):
+            temp = nn.feedforward(np.array([[x_i]]))
             for j in range(output_size):
                 y[j].append(temp[0][j].numpy())
             if is_debug and i % (len(x) // 10) == 0:
@@ -111,12 +116,14 @@ def build_plot(
         if is_debug:
             print("End build y data from network")
         for i, y_i in enumerate(y):
-            plt.plot(x, y_i, "-", label=f"{i} {labels[num_nn]}")
+            plt.plot(x, y_i, "-", color="blue", label=f"{i} {labels[num_nn]}")
     if true_data is not None:
         if len(labels) == len(network):
             plt.plot(true_data[0], true_data[1], ".", label="function")
         else:
-            plt.plot(true_data[0], true_data[1], ".", label=f"{labels[-1]}")
+            plt.plot(
+                true_data[0], true_data[1], ".", color="red", label=f"{labels[-1]}"
+            )
     plt.title(title)
     plt.legend()
     plt.show()

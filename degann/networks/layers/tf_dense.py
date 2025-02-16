@@ -53,10 +53,12 @@ class TensorflowDense(keras.layers.Layer):
             kwargs.pop("decorator_params")
 
         if not isinstance(decorator_params, dict) and decorator_params is not None:
-            raise "Additional parameters for activation function must be dictionary"
+            raise TypeError(
+                "Additional parameters for activation function must be dictionary"
+            )
 
         if input_dim == 0 or units == 0:
-            raise "Layer cannot have zero inputs or zero size"
+            raise ValueError("Layer cannot have zero inputs or zero size")
 
         super(TensorflowDense, self).__init__(**kwargs)
         w_init = weight_initializer
@@ -173,6 +175,7 @@ class TensorflowDense(keras.layers.Layer):
     @property
     def get_activation(self) -> str:
         return self.activation_name
+
 
 class PyTorchDense(nn.Module):
     def __init__(

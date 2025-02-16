@@ -1,4 +1,10 @@
-import degann
+from degann.expert import ExpertSystemTags
+from degann.expert.tags import (
+    EquationType,
+    RequiredModelPrecision,
+    ModelPredictTime,
+    DataSize,
+)
 from degann.networks.imodel import IModel
 from degann.search_algorithms import (
     random_search_endless,
@@ -9,12 +15,8 @@ from degann.search_algorithms import (
 from degann.search_algorithms.nn_code import (
     encode,
     decode,
-    act_to_hex,
-    hex_to_act,
-    alph_n_full,
 )
 
-from degann.expert import expert_system_tags
 from degann.expert.selector import suggest_parameters
 from degann.expert.pipeline import execute_pipeline
 
@@ -29,6 +31,14 @@ from degann.equations import (
 import numpy as np
 
 from random import randint
+
+from degann.search_algorithms.search_algorithms_parameters import (
+    BaseSearchParameters,
+    GridSearchParameters,
+    RandomEarlyStoppingSearchParameters,
+    SimulatedAnnealingSearchParameters,
+)
+
 
 # Prepare data for neural network training
 
@@ -82,7 +92,7 @@ nn_1_32_16_8_1.compile(
 
 loss_before_train = nn_1_32_16_8_1.evaluate(x_data, y_data, verbose=0)
 
-nn_1_32_16_8_1.train(train_data_x, train_data_y, epochs=25, verbose=0)
+nn_1_32_16_8_1.train(train_data_x, train_data_y, epochs=50, verbose=0)
 
 loss_after_train = nn_1_32_16_8_1.evaluate(x_data, y_data, verbose=0)
 
@@ -137,20 +147,39 @@ print(
 )
 
 
+base_params = BaseSearchParameters()
+base_params.input_size = 1  # size of input data (x)
+base_params.output_size = 1  # size of output data (y)
+base_params.data = (train_data_x, train_data_y)  # dataset
+base_params.min_epoch = 10  # starting number of epochs
+base_params.max_epoch = 20  # final number of epochs
+base_params.nn_min_length = 1  # starting number of hidden layers of neural networks
+base_params.nn_max_length = 2  # final number of hidden layers of neural networks
+base_params.nn_alphabet = [
+    "0a",
+    "42",
+]  # list of possible sizes of hidden layers with activations for them
+base_params.logging = False  # logging search process to file
+base_params.optimizer = "Adam"  # Optimizer
+
+grid_search_params = GridSearchParameters(base_params)
+grid_search_params.optimizers = ["Adam"]  # list of optimizers
+grid_search_params.losses = ["MeanAbsolutePercentageError"]  # list of loss functions
+grid_search_params.epoch_step = 10  # step between `min_epoch` and `max_epoch`
+
+
 result_loss, result_epoch, result_loss_name, result_optimizer, result_nn = grid_search(
-    input_size=1,
-    output_size=1,
-    data=(train_data_x, train_data_y),
-    optimizers=["Adam"],
-    loss=["MeanAbsolutePercentageError"],
-    min_epoch=10,
-    max_epoch=20,
-    epoch_step=10,
-    nn_min_length=1,
-    nn_max_length=2,
-    nn_alphabet=["0a", "42"],
+    grid_search_params
 )
 print(result_nn)
+
+random_search_params = RandomEarlyStoppingSearchParameters(base_params)
+random_search_params.nn_max_length = 3
+random_search_params.nn_alphabet = ["0a", "f8", "42"]
+random_search_params.max_launches = 10
+random_search_params.loss_threshold = 20
+random_search_params.iterations = 1
+random_search_params.loss_function = "MaxAbsolutePercentageError"
 
 (
     result_loss,
@@ -159,21 +188,15 @@ print(result_nn)
     result_optimizer,
     result_nn,
     final_iteration,
-) = random_search_endless(
-    input_size=1,
-    output_size=1,
-    data=(train_data_x, train_data_y),
-    opt="Adam",
-    loss="MaxAbsolutePercentageError",
-    threshold=20,
-    min_epoch=10,
-    max_epoch=20,
-    max_iter=10,
-    nn_min_length=1,
-    nn_max_length=3,
-    nn_alphabet=["0a", "f8", "42"],
-)
+) = random_search_endless(random_search_params)
 print(result_nn)
+
+sim_ann_search_params = SimulatedAnnealingSearchParameters(base_params)
+sim_ann_search_params.loss_function = "Huber"
+sim_ann_search_params.max_launches = 10
+sim_ann_search_params.nn_max_length = 3
+sim_ann_search_params.loss_threshold = 1
+sim_ann_search_params.nn_alphabet = ["0a", "f8", "42"]
 
 (
     result_loss,
@@ -182,33 +205,24 @@ print(result_nn)
     result_optimizer,
     result_nn,
     final_iteration,
-) = simulated_annealing(
-    input_size=1,
-    output_size=1,
-    data=(train_data_x, train_data_y),
-    opt="Adam",
-    loss="Huber",
-    threshold=1,
-    min_epoch=10,
-    max_epoch=20,
-    max_iter=10,
-    nn_min_length=1,
-    nn_max_length=3,
-    nn_alphabet=["0a", "f8", "42"],
-)
+) = simulated_annealing(sim_ann_search_params)
 print(result_nn)
 
-algorithms_parameters = suggest_parameters(
-    tags={
-        "type": "exp",  # type of function in data --- in this case it is the parabola (3 * x^2)
-        "precision": "minimal",  # Shows how important the accuracy of the solution is to us
-        "work time": "medium",  # Shows how important the operating time (predict) of the resulting neural network is to us
-        "data size": "median",  # Training dataset size
-    }
-)
+selector_tags = ExpertSystemTags()
+selector_tags.equation_type = (
+    EquationType.EXP
+)  # type of function in data --- in this case it is the parabola (3 * x^2)
+selector_tags.model_precision = (
+    RequiredModelPrecision.MINIMAL
+)  # Shows how important the accuracy of the solution is to us
+selector_tags.predict_time = (
+    ModelPredictTime.MEDIUM
+)  # Shows how important the operating time (predict) of the resulting neural network is to us
+selector_tags.data_size = DataSize.MEDIAN  # Training dataset size
+algorithms_parameters = suggest_parameters(tags=selector_tags)
 
 print("Resulting parameters by expert system for search algorithms")
-for k, v in algorithms_parameters.items():
+for k, v in algorithms_parameters.__dict__.items():
     print(f"{k}: {v}")
 
 # All possible tags:
@@ -242,7 +256,7 @@ build_plot(
         model_from_expert_system,
         nn_1_32_16_8_1,
     ],  # list of models (or single model)
-    interval=(0, 1),  # from where to where to build a plot
+    interval=(0.0, 1.0),  # from where to where to build a plot
     step=0.02,  # step inside bounds
     title="Approximation of parabola",
     labels=[
@@ -250,7 +264,7 @@ build_plot(
         "[32_16_8] nn",
         "f(x) = 3*x^2",
     ],  # labels for plots. Last label for true values
-    true_data=[x_plot_data, y_plot_data],
+    true_data=(x_plot_data, y_plot_data),
 )
 
 str_sode = "y1*y2 y0(0)=0\n" + "-y0*y2 y1(0)=1\n" + "-0.5*y0*y1 y2(0)=1"

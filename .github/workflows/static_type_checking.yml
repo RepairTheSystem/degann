@@ -1,13 +1,19 @@
-name: Publish build
+name: Mypy
 
 # Controls when the workflow will run
 on:
   # Triggers the workflow on push or pull request events
   [ push, pull_request ]
 
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  build:
-    runs-on: windows-latest
+
+  # This workflow contains a single job called "tests"
+  tests:
+
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
     # A strategy creates a build matrix for your jobs
     strategy:
 
@@ -16,6 +22,8 @@ jobs:
 
         # Each option you define in the matrix has a key and value
         python-version: [ 3.10.8 ]
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Set up Git repository
@@ -36,20 +44,7 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip list
 
-      - name: Install pyinstaller
+      # Run mypy
+      - name: Check types with mypy
         run: |
-          python -m pip install pyinstaller
-
-      - name: Install pyqt6
-        run: |
-          python -m pip install pyqt6
-
-      - name: Build your application
-        run: |
-          pyinstaller -n Degann --onefile --windowed .\gui\__main__.py
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: degann
-          path: ./dist/Degann.exe
+          mypy ./degann/ ./gui/

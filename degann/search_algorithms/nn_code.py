@@ -1,4 +1,5 @@
-from typing import Tuple, List
+from itertools import product
+from typing import Optional, Tuple, List
 
 from degann.networks import imodel
 
@@ -26,9 +27,12 @@ alph_n_div4 = "048c"
 
 alphabet_activations_cut = "0689"
 alphabet_activations = "0123456789abc"
+default_alphabet: list[str] = [
+    "".join(elem) for elem in product(alph_n_full, alphabet_activations)
+]
 
 
-def encode(nn: imodel.IModel, offset: int = None) -> str:
+def encode(nn: imodel.IModel, offset: Optional[int] = None) -> str:
     """
     Encode neural network to string
 

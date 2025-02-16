@@ -4,19 +4,27 @@ from PyQt6.QtWidgets import QMainWindow, QFileDialog
 
 import degann.expert.pipeline
 import degann.networks
+from degann.expert.tags import (
+    map_value_to_equation_type,
+    map_value_to_precision,
+    map_value_to_predict,
+    map_value_to_data_size,
+)
 from gui.export_window import ExportNNLayout
 from gui.load_dataset_window import LoadDatasetLayout
 from gui.train_window import SelectAndTrainLayout
-from degann import IModel
-from degann.expert import selector
+from degann.networks.imodel import IModel
+from degann.expert import selector, ExpertSystemTags
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.setup_ui()
 
-    def setup_ui(self):
+        self.parameters = selector.BaseParameters()
+
+    def setup_ui(self) -> None:
         self.setObjectName("MainWindow")
 
         self.set_load_area()
@@ -27,7 +35,7 @@ class MainWindow(QMainWindow):
 
         QtCore.QMetaObject.connectSlotsByName(self)
 
-    def setup_load_area(self):
+    def setup_load_area(self) -> None:
         self.load_dataset_widget = QtWidgets.QWidget(parent=self)
         self.load_dataset_widget.setObjectName("load_dataset_widget")
         load_dataset_layout = LoadDatasetLayout(self.load_dataset_widget)
@@ -36,7 +44,7 @@ class MainWindow(QMainWindow):
         )
         load_dataset_button.clicked.connect(self.load_dataset)
 
-    def set_load_area(self):
+    def set_load_area(self) -> None:
         self.setup_load_area()
         self.setCentralWidget(self.load_dataset_widget)
         # self.load_dataset_widget.show()
@@ -44,7 +52,7 @@ class MainWindow(QMainWindow):
         # self.export_widget.hide()
         self.resize(600, 400)
 
-    def setup_select_area(self):
+    def setup_select_area(self) -> None:
         self.select_and_train_widget = QtWidgets.QWidget(parent=self)
         self.select_and_train_widget.setObjectName("select_and_train_widget")
         select_layout = SelectAndTrainLayout(self.select_and_train_widget)
@@ -61,7 +69,7 @@ class MainWindow(QMainWindow):
         )
         train_button.clicked.connect(self.start_train)
 
-    def set_select_area(self):
+    def set_select_area(self) -> None:
         self.setup_select_area()
         self.setCentralWidget(self.select_and_train_widget)
         # self.load_dataset_widget.hide()
@@ -69,7 +77,7 @@ class MainWindow(QMainWindow):
         # self.export_widget.hide()
         self.resize(600, 400)
 
-    def setup_export_area(self):
+    def setup_export_area(self) -> None:
         self.export_widget = QtWidgets.QWidget(parent=self)
         self.export_widget.setObjectName("export_widget")
         export_layout = ExportNNLayout(self.export_widget)
@@ -84,7 +92,7 @@ class MainWindow(QMainWindow):
         )
         export_cpp_button.clicked.connect(self.export_to_cpp)
 
-    def set_export_area(self):
+    def set_export_area(self) -> None:
         self.setup_export_area()
         self.setCentralWidget(self.export_widget)
         # self.load_dataset_widget.hide()
@@ -92,7 +100,7 @@ class MainWindow(QMainWindow):
         # self.export_widget.show()
         self.resize(600, 400)
 
-    def load_dataset(self):
+    def load_dataset(self) -> None:
         path_to_data, _ = QFileDialog.getOpenFileName(
             self, "Select file", "", "Table (*.csv)"
         )
@@ -129,49 +137,56 @@ class MainWindow(QMainWindow):
         else:
             self.statusbar.showMessage(f"Fail to open file.")
 
-    def select_parameters(self):
-        tags = {
-            "type": self.select_and_train_widget.findChild(
+    def select_parameters(self) -> None:
+        tags = ExpertSystemTags()
+        tags.equation_type = map_value_to_equation_type(
+            self.select_and_train_widget.findChild(
                 QtWidgets.QComboBox, "eq_type_combobox"
-            ).currentText(),
-            "precision": self.select_and_train_widget.findChild(
+            ).currentText()
+        )
+        tags.model_precision = map_value_to_precision(
+            self.select_and_train_widget.findChild(
                 QtWidgets.QComboBox, "precision_combobox"
-            ).currentText(),
-            "work time": self.select_and_train_widget.findChild(
+            ).currentText()
+        )
+        tags.predict_time = map_value_to_predict(
+            self.select_and_train_widget.findChild(
                 QtWidgets.QComboBox, "work_time_combobox"
-            ).currentText(),
-            "data size": self.select_and_train_widget.findChild(
+            ).currentText()
+        )
+        tags.data_size = map_value_to_data_size(
+            self.select_and_train_widget.findChild(
                 QtWidgets.QComboBox, "data_size_combobox"
-            ).currentText(),
-        }
+            ).currentText()
+        )
         self.parameters = selector.suggest_parameters(
             (self.train_data_x, self.train_data_y), tags
         )
 
         self.select_and_train_widget.findChild(
             QtWidgets.QComboBox, "loss_func_combobox"
-        ).setCurrentText(str(self.parameters["loss_function"]))
+        ).setCurrentText(str(self.parameters.loss_function))
         self.select_and_train_widget.findChild(
             QtWidgets.QLineEdit, "loss_threshold_text"
-        ).setText(str(self.parameters["loss_threshold"]))
+        ).setText(str(self.parameters.loss_threshold))
         self.select_and_train_widget.findChild(
             QtWidgets.QComboBox, "optimizer_combobox"
-        ).setCurrentText(str(self.parameters["optimizer"]))
+        ).setCurrentText(str(self.parameters.optimizer))
 
         self.statusbar.showMessage("Success select parameters")
 
-    def start_train(self):
+    def start_train(self) -> None:
         parameters = self.parameters
 
-        parameters["loss_function"] = self.select_and_train_widget.findChild(
+        parameters.loss_function = self.select_and_train_widget.findChild(
             QtWidgets.QComboBox, "loss_func_combobox"
         ).currentText()
-        parameters["loss_threshold"] = float(
+        parameters.loss_threshold = float(
             self.select_and_train_widget.findChild(
                 QtWidgets.QLineEdit, "loss_threshold_text"
             ).text()
         )
-        parameters["optimizer"] = self.select_and_train_widget.findChild(
+        parameters.optimizer = self.select_and_train_widget.findChild(
             QtWidgets.QComboBox, "optimizer_combobox"
         ).currentText()
 
@@ -187,7 +202,7 @@ class MainWindow(QMainWindow):
         )
         self.set_export_area()
 
-    def export_to_file(self):
+    def export_to_file(self) -> None:
         export_path = self.export_widget.findChild(
             QtWidgets.QPlainTextEdit, "export_nn_plaintext"
         ).toPlainText()
@@ -200,7 +215,7 @@ class MainWindow(QMainWindow):
         nn.export_to_file(export_path)
         self.statusbar.showMessage(f"Success export to {export_path + '.apg'}")
 
-    def export_to_cpp(self):
+    def export_to_cpp(self) -> None:
         export_path = self.export_widget.findChild(
             QtWidgets.QPlainTextEdit, "export_nn_plaintext"
         ).toPlainText()
