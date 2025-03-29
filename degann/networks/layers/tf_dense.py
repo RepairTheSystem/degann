@@ -189,24 +189,24 @@ class PyTorchDense(nn.Module):
         **kwargs,
     ):
         """
-        Initializing the Pwtorch Dense layer.
+                Initializing the Pwtorch Dense layer.
 
-        Parameters
-        ----------
-        input_dim : int
-            The size of the input layer.
-        units : int
-            The number of neurons in the layer.
-        activation_func : str
-is the name of the activation function.
-        weight_initializer : Callable
-            The initializer of the scales.
-        bias_initializer : Callable
-            The offset initializer.
-        is_debug : bool
-            Debugging mode flag.
-        kwargs : dict
-            Additional parameters.
+                Parameters
+                ----------
+                input_dim : int
+                    The size of the input layer.
+                units : int
+                    The number of neurons in the layer.
+                activation_func : str
+        is the name of the activation function.
+                weight_initializer : Callable
+                    The initializer of the scales.
+                bias_initializer : Callable
+                    The offset initializer.
+                is_debug : bool
+                    Debugging mode flag.
+                kwargs : dict
+                    Additional parameters.
         """
         super(PyTorchDense, self).__init__()
 
@@ -277,7 +277,9 @@ is the name of the activation function.
             LAYER_DICT_NAMES["layer_type"]: type(self).__name__,
             LAYER_DICT_NAMES["dtype"]: str(w.dtype),
             LAYER_DICT_NAMES["activation"]: self.activation_name,
-            LAYER_DICT_NAMES["decorator_params"]: _dec_params_to_list(self.decorator_params),
+            LAYER_DICT_NAMES["decorator_params"]: _dec_params_to_list(
+                self.decorator_params
+            ),
         }
         return res
 
@@ -328,9 +330,9 @@ def create_dense_layer(**kwargs):
     Value Error
         If the framework is not supported.
     """
-    if _framework == 'tensorflow':
+    if _framework == "tensorflow":
         return TensorflowDense(**kwargs)
-    elif _framework == 'pytorch':
+    elif _framework == "pytorch":
         return PyTorchDense(**kwargs)
     else:
         raise ValueError(f"Unsupported framework: {_framework}")

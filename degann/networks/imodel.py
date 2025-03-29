@@ -509,12 +509,11 @@ _create_functions: defaultdict[str, Type[tf.keras.Model]] = defaultdict(
 _create_functions["DenseNet"] = TensorflowDenseNet
 
 
-
 class PtIModel:
     """
     Interface class for working with neural topology in PyTorch
     """
-    
+
     def __init__(
         self,
         input_size: int,
@@ -529,43 +528,68 @@ class PtIModel:
         **kwargs,
     ):
         self.network = self._create_network(
-            input_size, block_size, output_size, activation_func, weight_init, bias_init, **kwargs
+            input_size,
+            block_size,
+            output_size,
+            activation_func,
+            weight_init,
+            bias_init,
+            **kwargs,
         )
         self._name = name
         self._is_debug = is_debug
-    
-    def _create_network(self, input_size, block_size, output_size, activation_func, weight_init, bias_init, **kwargs):
+
+    def _create_network(
+        self,
+        input_size,
+        block_size,
+        output_size,
+        activation_func,
+        weight_init,
+        bias_init,
+        **kwargs,
+    ):
         layers = []
         in_features = input_size
         if isinstance(activation_func, str):
             activation_func = getattr(nn, activation_func, nn.Sigmoid)()
-        
+
         for out_features in block_size:
             layers.append(nn.Linear(in_features, out_features))
             layers.append(activation_func)
             in_features = out_features
-        
+
         layers.append(nn.Linear(in_features, output_size))
-        
+
         model = nn.Sequential(*layers)
         for layer in model:
             if isinstance(layer, nn.Linear):
                 weight_init(layer.weight)
                 bias_init(layer.bias)
-        
+
         return model
-    
-    def compile(self, optimizer: str = "SGD", lr: float = 1e-2, loss_func: str = "MSELoss"):
+
+    def compile(
+        self, optimizer: str = "SGD", lr: float = 1e-2, loss_func: str = "MSELoss"
+    ):
         self.loss_func = getattr(nn, loss_func)()
         self.optimizer = getattr(optim, optimizer)(self.network.parameters(), lr=lr)
-    
+
     def feedforward(self, inputs: torch.Tensor) -> torch.Tensor:
         return self.network(inputs)
-    
-    def train(self, x_data: torch.Tensor, y_data: torch.Tensor, epochs: int = 10, batch_size: int = 16):
+
+    def train(
+        self,
+        x_data: torch.Tensor,
+        y_data: torch.Tensor,
+        epochs: int = 10,
+        batch_size: int = 16,
+    ):
         dataset = torch.utils.data.TensorDataset(x_data, y_data)
-        dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
-        
+        dataloader = torch.utils.data.DataLoader(
+            dataset, batch_size=batch_size, shuffle=True
+        )
+
         for epoch in range(epochs):
             total_loss = 0.0
             for x_batch, y_batch in dataloader:
@@ -576,22 +600,22 @@ class PtIModel:
                 self.optimizer.step()
                 total_loss += loss.item()
             print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss/len(dataloader):.4f}")
-    
+
     def predict(self, x_data: torch.Tensor) -> torch.Tensor:
         self.network.eval()
         with torch.no_grad():
             return self.network(x_data)
-    
+
     def evaluate(self, x_data: torch.Tensor, y_data: torch.Tensor) -> float:
         self.network.eval()
         with torch.no_grad():
             y_pred = self.network(x_data)
             loss = self.loss_func(y_pred, y_data)
         return loss.item()
-    
+
     def set_name(self, name: str) -> None:
         self._name = name
-    
+
     @property
     def get_name(self) -> str:
         return self._name

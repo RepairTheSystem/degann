@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Dict, Optional
 
-from degann.config import _framework  
+from degann.config import _framework
 import tensorflow as tf
 from tensorflow import keras
 
@@ -27,11 +27,18 @@ class BaseLoss(ABC):
         if self.reduction == "none":
             return loss
         elif self.reduction == "sum":
-            return tf.reduce_sum(loss) if isinstance(loss, tf.Tensor) else torch.sum(loss)
+            return (
+                tf.reduce_sum(loss) if isinstance(loss, tf.Tensor) else torch.sum(loss)
+            )
         elif self.reduction == "mean":
-            return tf.reduce_mean(loss) if isinstance(loss, tf.Tensor) else torch.mean(loss)
+            return (
+                tf.reduce_mean(loss)
+                if isinstance(loss, tf.Tensor)
+                else torch.mean(loss)
+            )
         else:
             raise ValueError(f"Unknown reduction type: {self.reduction}")
+
 
 # Custom loss classes for PyTorch
 class PyTorchRelativeAbsoluteError(BaseLoss):
@@ -43,10 +50,12 @@ class PyTorchRelativeAbsoluteError(BaseLoss):
         loss = numerator / denominator
         return self.reduce_loss(loss)
 
+
 class PyTorchMaxAbsoluteDeviation(BaseLoss):
     def __call__(self, y_true, y_pred):
         loss = torch.max(torch.abs(y_true - y_pred))
         return self.reduce_loss(loss)
+
 
 class PyTorchRMSE(BaseLoss):
     def __call__(self, y_true, y_pred):
@@ -64,15 +73,18 @@ class RelativeAbsoluteError(BaseLoss):
         loss = numerator / denominator
         return self.reduce_loss(loss)
 
+
 class MaxAbsoluteDeviation(BaseLoss):
     def __call__(self, y_true, y_pred):
         loss = tf.reduce_max(tf.abs(y_true - y_pred))
         return self.reduce_loss(loss)
 
+
 class MaxAbsolutePercentageError(BaseLoss):
     def __call__(self, y_true, y_pred):
         loss = tf.reduce_max(tf.abs((y_true - y_pred) / y_true)) * 100.0
         return self.reduce_loss(loss)
+
 
 class RMSE(BaseLoss):
     def __call__(self, y_true, y_pred):
@@ -80,8 +92,10 @@ class RMSE(BaseLoss):
         loss = tf.sqrt(mse)
         return self.reduce_loss(loss)
 
+
 # Global dictionary for losses
 losses: Dict[str, Callable] = {}
+
 
 # Initialize losses based on framework
 def _initialize_losses():
@@ -90,7 +104,7 @@ def _initialize_losses():
     """
     global losses
 
-    if _framework == "TensorFlow": #enum
+    if _framework == "TensorFlow":  # enum
         losses = {
             "Huber": keras.losses.Huber(),
             "LogCosh": keras.losses.LogCosh(),
@@ -111,6 +125,7 @@ def _initialize_losses():
         }
     else:
         raise ValueError(f"Unsupported framework: {_framework}")
+
 
 _initialize_losses()
 
@@ -135,6 +150,7 @@ def get_loss(name: str) -> Optional[Callable]:
     if name not in losses:
         raise ValueError(f"Loss function '{name}' is not available in {_framework}.")
     return losses.get(name)
+
 
 def get_all_loss_functions() -> Dict[str, Callable]:
     """

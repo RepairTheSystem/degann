@@ -1,9 +1,10 @@
 from typing import Callable, Dict, Optional
 import torch.optim as optim
-from degann.config import _framework  
+from degann.config import _framework
 from tensorflow import keras
 
 optimizers: Dict[str, Callable] = {}
+
 
 def _initialize_optimizer():
     """
@@ -16,7 +17,7 @@ def _initialize_optimizer():
     """
     global optimizers
 
-    if _framework == 'TensorFlow':
+    if _framework == "TensorFlow":
         optimizers = {
             "Adadelta": keras.optimizers.Adadelta,
             "Adafactor": keras.optimizers.Adafactor,
@@ -31,7 +32,7 @@ def _initialize_optimizer():
             "RMSprop": keras.optimizers.RMSprop,
             "SGD": keras.optimizers.SGD,
         }
-    elif _framework == 'pytorch':
+    elif _framework == "pytorch":
         optimizers = {
             "Adadelta": optim.Adadelta,
             "Adagrad": optim.Adagrad,
@@ -44,7 +45,9 @@ def _initialize_optimizer():
     else:
         raise ValueError(f"Unsupported framework: {_framework}")
 
+
 _initialize_optimizer()
+
 
 def get_optimizer(name: str, **kwargs) -> Optional[Callable]:
     """

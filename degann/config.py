@@ -4,4 +4,4 @@ and contain the necessary metadata for initializing modules
 
 Then we'll add user input here
 """
-_framework = 'TensorFlow' # or 'TensorFlow'
+_framework = "TensorFlow"  # or 'TensorFlow'
